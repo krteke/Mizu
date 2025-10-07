@@ -24,8 +24,11 @@ pub enum DBError {
     QueryFailed(#[from] sqlx::Error),
 }
 
-// #[derive(Debug)]
-// pub struct SomeError(anyhow::Error);
+#[derive(Debug, Error)]
+pub enum GetPostsError {
+    #[error("Invalid Category type.")]
+    CategoryError,
+}
 
 #[derive(Debug, Error)]
 pub enum SomeError {
@@ -35,6 +38,8 @@ pub enum SomeError {
     Database(#[from] DBError),
     #[error(transparent)]
     Meilisearch(#[from] meilisearch_sdk::errors::Error),
+    #[error(transparent)]
+    GetPosts(#[from] GetPostsError),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
@@ -72,6 +77,11 @@ impl IntoResponse for SomeError {
                 "Database temporarily unavailable",
             ),
 
+            SomeError::GetPosts(GetPostsError::CategoryError) => (
+                StatusCode::BAD_REQUEST,
+                "Something was invalid in requests.",
+            ),
+
             SomeError::Other(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred",
@@ -88,43 +98,3 @@ impl IntoResponse for SomeError {
 }
 
 pub type Result<T> = std::result::Result<T, SomeError>;
-
-// impl<E> From<E> for SomeError
-// where
-// E: Into<anyhow::Error>,
-// {
-// fn from(err: E) -> Self {
-// Self(err.into())
-// }
-// }
-
-// impl IntoResponse for SomeError {
-//     fn into_response(self) -> axum::response::Response {
-//         tracing::error!("Internal error: {}", self.0);
-
-//         let (status, user_message) =
-//             if let Some(_search_error) = self.0.downcast_ref::<SearchError>() {
-//                 (
-//                     StatusCode::INTERNAL_SERVER_ERROR,
-//                     "Something went wrong. Please try again later.",
-//                 )
-//             } else if let Some(_db_error) = self.0.downcast_ref::<DBError>() {
-//                 (
-//                     StatusCode::INTERNAL_SERVER_ERROR,
-//                     "Something went wrong. Please try again later.",
-//                 )
-//             } else {
-//                 (
-//                     StatusCode::INTERNAL_SERVER_ERROR,
-//                     "Something went wrong. Please try again later.",
-//                 )
-//             };
-
-//         let body = Json(json!({
-//             "error": user_message,
-//             "status": "error"
-//         }));
-
-//         (status, body).into_response()
-//     }
-// }

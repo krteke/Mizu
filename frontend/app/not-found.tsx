@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function NotFound() {
+export default function notFound() {
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-var(--footer-h))] pt-[var(--header-h)]">
       <h2>Not Found</h2>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import SearchBar from "./search_bar";
+import SearchBar from "./search-bar";
 
 export default function Header() {
   type ScrollDirection = "up" | "down" | null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useContext } from "react";
-import MagneticElement from "./magnetic_element";
+import MagneticElement from "./magnetic-element";
 import { CursorContext } from "../context/cursor_context";
 import DefaultCursor from "../assets/default-cursor.svg";
 import CustomCursor from "../assets/custom-cursor.svg";

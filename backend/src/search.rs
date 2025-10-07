@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     Json,
     extract::{Query, State},
@@ -102,7 +104,7 @@ pub struct SearchResponse {
 }
 
 pub async fn get_search_results(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Query(params): Query<SearchParams>,
 ) -> Result<Json<SearchResponse>> {
     if params.q.trim().is_empty() {
@@ -175,7 +177,7 @@ pub async fn get_search_results(
     }))
 }
 
-pub async fn create_search_index(State(state): State<AppState>) -> Result<()> {
+pub async fn create_search_index(State(state): State<Arc<AppState>>) -> Result<()> {
     let client = &state.search_service.admin_client;
     client
         .create_index(DEFAULT_SEARCH_INDEX, Some("id"))
@@ -189,10 +191,10 @@ pub async fn create_search_index(State(state): State<AppState>) -> Result<()> {
         .set_filterable_attributes(&searchable_attributes)
         .await?;
 
-    let db_pool = state.db_pool;
+    let db_pool = &state.db_pool;
 
     let db_articles = sqlx::query_as!(Article, "SELECT * FROM articles")
-        .fetch_all(&db_pool)
+        .fetch_all(db_pool)
         .await?;
 
     client

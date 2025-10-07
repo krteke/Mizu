@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Top from "../assets/top.svg";
-import MagneticElement from "./magnetic_element";
+import MagneticElement from "./magnetic-element";
 
 type Props = {
   onScrollToTop: (isAtTop: boolean) => void;

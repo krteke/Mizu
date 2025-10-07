@@ -1,8 +1,8 @@
 import { useState } from "react";
-import ScrollProgress from "./scroll_progress";
-import ScrollToBottom from "./scroll_to_bottom";
-import ThemeToggle from "./theme_toggle";
-import CursorToggle from "./cursor_toggle";
+import ScrollProgress from "./scroll-progress";
+import ScrollToBottom from "./scroll-to-bottom";
+import ThemeToggle from "./theme-toggle";
+import CursorToggle from "./cursor-toggle";
 
 export default function Toolbar() {
   const [atTop, setAtTop] = useState(true);

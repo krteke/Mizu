@@ -33,3 +33,47 @@ pub struct SearchHit {
     pub summary: String,
     pub content: String,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct PostResponse {
+    pub title: String,
+    pub tags: Vec<String>,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum PostCategory {
+    #[serde(rename = "article")]
+    Article,
+    #[serde(rename = "note")]
+    Note,
+    #[serde(rename = "think")]
+    Think,
+    #[serde(rename = "pictures")]
+    Pictures,
+    #[serde(rename = "talk")]
+    Talk,
+}
+
+impl PostCategory {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PostCategory::Article => "article",
+            PostCategory::Note => "note",
+            PostCategory::Pictures => "pictures",
+            PostCategory::Talk => "talk",
+            PostCategory::Think => "think",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "article" => Some(PostCategory::Article),
+            "note" => Some(PostCategory::Note),
+            "pictures" => Some(PostCategory::Pictures),
+            "talk" => Some(PostCategory::Talk),
+            "think" => Some(PostCategory::Think),
+            _ => None,
+        }
+    }
+}

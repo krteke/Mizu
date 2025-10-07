@@ -1,13 +1,15 @@
 use axum::routing::{get, put};
 use mimalloc::MiMalloc;
 use sqlx::postgres::PgPoolOptions;
-use std::{net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use crate::{
+    articles::get_posts,
     common::AppState,
     search::{SearchService, get_search_results},
 };
 
+mod articles;
 mod common;
 mod config;
 mod db;
@@ -23,7 +25,7 @@ const DEFAULT_INDEX_NAME: &str = "articles";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
     let config = config::Config::from_env()
         .expect("Failed to load configuration. Check your environment variables.");
 
@@ -54,7 +56,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         search_service: search_service,
     };
 
-    let api_router = axum::Router::new().route("/search", get(get_search_results));
+    let state = Arc::new(state);
+
+    let api_router = axum::Router::new()
+        .route("/search", get(get_search_results))
+        .route("/posts", get(get_posts));
     // .route("/blog-update/:id", put(""));
 
     let router = axum::Router::new()
