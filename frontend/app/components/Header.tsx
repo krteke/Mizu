@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import SearchBar from "./SearchBar";
 import ScrollProgress from "./ScrollProgress";
+import NavigateBar from "./NavigateBar";
 
 export default function Header() {
   // 定义滚动方向的类型
@@ -65,10 +66,8 @@ export default function Header() {
       >
         <div className="flex w-4xl max-[1024px]:w-2xl max-[896px]:w-[460px] h-full pt-1 pb-1 items-center justify-between">
           <div className="flex flex-1 justify-start"></div>
-          <div className=" h-full w-4 bg-amber-700 flex items-center relative">
-            <Link href={"/about"} className="w-full h-full"></Link>
-            <Link href={"/articles"}></Link>
-            <Link href={"/links"}></Link>
+          <div className="h-full flex items-center relative flex-row justify-center">
+            <NavigateBar />
           </div>
           <div className="flex flex-1 items-center justify-end">
             <SearchBar placeholder="search..."></SearchBar>

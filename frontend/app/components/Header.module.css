@@ -1,0 +1,43 @@
+.header {
+    @apply flex justify-center items-center fixed top-0 left-0 right-0 z-10 h-[var(--header-h)] p-2.5;
+
+    /* 背景、模糊和过渡效果 */
+    @apply bg-gray-200/50 dark:bg-zinc-900/50 backdrop-blur-lg;
+
+    /* 边框和阴影 */
+    @apply border-b border-black/10 dark:border-white/10 shadow-sm;
+
+    /* 动画效果 */
+    @apply transition-all duration-300 ease-in-out;
+}
+
+.container {
+    /* 基础样式：flex 布局，两端对齐 */
+    @apply flex w-full h-full items-center justify-between;
+
+    /* 宽度控制：设置最大宽度，并使用标准断点 */
+    @apply max-w-7xl;
+    /* 替换 w-4xl，7xl 更大一些 */
+
+    /* @apply max-w-7xl lg:max-w-4xl md:max-w-2xl; */
+    @apply max-w-7xl lg:max-w-4xl md:max-w-2xl;
+}
+
+.start,
+.end {
+    /* 用于占位的 flex-1 容器 */
+    @apply flex-1;
+}
+
+.center {
+    /* 中间导航栏的容器 */
+    @apply flex items-center justify-center;
+}
+
+.start {
+    @apply justify-start;
+}
+
+.end {
+    @apply justify-end;
+}

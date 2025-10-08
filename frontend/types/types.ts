@@ -10,6 +10,7 @@ export interface ArticleDigital {
 }
 
 export interface ArticleCard {
+  id: string;
   title: string;
   tags: string[];
   content: string;

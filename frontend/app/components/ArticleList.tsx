@@ -12,22 +12,46 @@ export default function ArticleList({
       return (
         <div className="flex flex-col">
           {cards.map((a) => {
-            return <div key={a.title}></div>;
+            return <div key={a.id}></div>;
           })}
         </div>
       );
     }
     case "note": {
-      return <div></div>;
+      return (
+        <div className="flex flex-col">
+          {cards.map((n) => {
+            return <div key={n.id}></div>;
+          })}
+        </div>
+      );
     }
     case "pictures": {
-      return <div></div>;
+      return (
+        <div className="flex flex-col">
+          {cards.map((p) => {
+            return <div key={p.id}></div>;
+          })}
+        </div>
+      );
     }
     case "talk": {
-      return <div></div>;
+      return (
+        <div className="flex flex-col">
+          {cards.map((t) => {
+            return <div key={t.id}></div>;
+          })}
+        </div>
+      );
     }
     case "think": {
-      return <div></div>;
+      return (
+        <div className="flex flex-col">
+          {cards.map((t) => {
+            return <div key={t.id}></div>;
+          })}
+        </div>
+      );
     }
   }
 }
