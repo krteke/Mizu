@@ -3,6 +3,7 @@ import Bottom from "../assets/bottom.svg";
 import MagneticElement from "./MagneticElement";
 
 export default function ScrollToBottom() {
+  // 滚动到页面底部的函数
   function scrollToBottom() {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }

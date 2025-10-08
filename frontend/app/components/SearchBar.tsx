@@ -9,6 +9,7 @@ import Caption from "../assets/caption.svg";
 import Aritcle from "../assets/article.svg";
 import Paragraph from "../assets/paragraph.svg";
 
+// 搜索结果的类型定义
 interface SearchResult {
   id: string;
   title: string;
@@ -17,18 +18,29 @@ interface SearchResult {
 
 type contentType = "caption" | "paragraph";
 
+// 一个搜索栏组件，带有展开动画和搜索结果显示功能
 export default function SearchBar({ placeholder }: { placeholder: string }) {
+  // 控制搜索栏是否展开
   const [isExpanded, setIsExpanded] = useState(false);
+  // 控制是否正在查询
   const [query, setQuery] = useState(false);
+  // 存储搜索结果
   const [results, setResults] = useState<SearchResult[]>([]);
+  // 引用输入框和容器元素
   const inputRef = useRef<HTMLInputElement>(null);
+  // 引用加载更多的元素
   const containerRef = useRef<HTMLDivElement>(null);
+  // 使用 Next.js 的路由和搜索参数钩子
   const searchParams = useSearchParams();
+  // 获取当前路径
   const pathname = usePathname();
+  // 获取路由的 replace 方法
   const { replace } = useRouter();
+  // 记录当前页码和是否有更多结果
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
+  // 点击外部区域时关闭搜索栏
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -37,7 +49,6 @@ export default function SearchBar({ placeholder }: { placeholder: string }) {
       ) {
         setIsExpanded(false);
         setQuery(false);
-        // setResults([]);
       }
     };
 
@@ -48,38 +59,46 @@ export default function SearchBar({ placeholder }: { placeholder: string }) {
     };
   }, []);
 
+  // 处理搜索结果
   const searchTerm = searchParams.get("query");
+  // 每当搜索词变化时，重置结果和页码
   useEffect(() => {
     setResults([]);
     setPage(1);
     setHasMore(true);
   }, [searchTerm]);
 
+  // 当页码或搜索词变化时，触发搜索请求
   useEffect(() => {
+    // 获取当前搜索词
     const term = searchParams.get("query") || "";
+    // 如果搜索词为空，清空结果并返回
     if (!term) {
       setResults([]);
       setQuery(false);
       return;
     }
 
-    // if (isExpanded) {
-    // setQuery(true);
+    // 定义异步函数来获取搜索结果
     const fetchData = async () => {
       try {
+        // 发送请求到搜索API
         const response = await fetch(
           `/api/search?q=${encodeURIComponent(term)}&page=${page}`
         );
 
         const data = await response.json();
+        // 更新搜索结果
         setResults((prevResults) =>
           page === 1 ? data.results : [...prevResults, ...data.results]
         );
 
+        // 如果没有更多结果，更新状态
         if (data.results.length === 0 || page >= data.pages) {
           setHasMore(false);
         }
       } catch (error) {
+        // 处理搜索请求失败的情况
         console.error("Search request failed:", error);
         setResults([]);
         setHasMore(false);
@@ -87,11 +106,13 @@ export default function SearchBar({ placeholder }: { placeholder: string }) {
       }
     };
 
+    // 在组件挂载时获取初始搜索结果
     fetchData();
-    // };
   }, [searchParams, page]);
 
+  // 处理搜索框输入变化的函数
   useEffect(() => {
+    // 当搜索框输入变化时，更新 URL 参数
     const term = searchParams.get("query") || "";
     if (!term) {
       setResults([]);
@@ -104,6 +125,7 @@ export default function SearchBar({ placeholder }: { placeholder: string }) {
     }
   }, [isExpanded, searchParams]);
 
+  // 处理搜索框输入变化的函数, 300ms防抖
   const handleSearch = useDebouncedCallback((term) => {
     const params = new URLSearchParams(searchParams);
 
@@ -115,17 +137,22 @@ export default function SearchBar({ placeholder }: { placeholder: string }) {
     replace(`${pathname}?${params.toString()}`);
   }, 300);
 
+  // 使用 Intersection Observer 来实现无限滚动
   const observer = useRef<IntersectionObserver>(null);
+  // 监听加载更多的元素进入视图
   const loadMoreRef = useCallback(
     (node: HTMLDivElement) => {
+      // 如果没有更多结果，直接返回
       if (observer.current) observer.current.disconnect();
 
+      // 创建新的 Intersection Observer 实例
       observer.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && hasMore) {
           setPage((prevPage) => prevPage + 1);
         }
       });
 
+      // 观察传入的节点, 当它进入视图时触发加载更多
       if (node) observer.current.observe(node);
     },
     [hasMore]

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+// 404 页面
 export default function notFound() {
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-var(--footer-h))] pt-[var(--header-h)]">

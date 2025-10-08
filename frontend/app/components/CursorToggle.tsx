@@ -6,14 +6,18 @@ import { CursorContext } from "../context/CursorContext";
 import DefaultCursor from "../assets/default-cursor.svg";
 import CustomCursor from "../assets/custom-cursor.svg";
 
+// 一个切换光标样式的按钮组件
 export default function CursorToggle() {
+  // 使用 CursorContext 来获取和设置光标状态
   const context = useContext(CursorContext);
   if (!context) {
     return;
   }
 
+  // 解构出 isCustomCursor 和 setIsCustomCursor
   const { isCustomCursor, setIsCustomCursor } = context;
 
+  // 切换光标状态的函数
   function changeCursor() {
     setIsCustomCursor((prev) => !prev);
   }

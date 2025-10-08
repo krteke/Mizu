@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+// 判断是否为移动设备的 Hook
 export const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
 

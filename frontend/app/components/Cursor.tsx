@@ -4,14 +4,20 @@ import { useContext, useEffect } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { CursorContext } from "../context/CursorContext";
 
+// 鼠标光标组件，显示自定义的光标和跟随效果
 export default function Cursor() {
+  // 获取光标上下文
   const context = useContext(CursorContext);
+  // 确保组件在 CursorProvider 内使用
   if (!context) {
     throw new Error("Cursor must be used within a CursorProvider");
   }
+  // 获取上下文中的 cursorType
   const { cursorType } = context;
 
+  // 使用 Framer Motion 的 useMotionValue 和 useSpring 创建平滑的动画效果
   const springConfig = { damping: 25, stiffness: 500 };
+  //-- 主光标 --//
   const primaryMouseX = useMotionValue(-100);
   const primaryMouseY = useMotionValue(-100);
   const width = useMotionValue(25);
@@ -21,8 +27,9 @@ export default function Cursor() {
   const borderRadius = useMotionValue("50%");
   const backgroundColor = useMotionValue("gray");
   const scale = useMotionValue(1);
-  const followMouseScale = useMotionValue(1);
 
+  //-- 跟随光标 --//
+  const followMouseScale = useMotionValue(1);
   const followerMouseSmoothX = useSpring(primaryMouseX, springConfig);
   const followerMouseSmoothY = useSpring(primaryMouseY, springConfig);
   const smoothWidth = useSpring(width, springConfig);
@@ -37,6 +44,7 @@ export default function Cursor() {
   const smoothScale = useSpring(scale, springConfig);
   const smoothFollowerScale = useSpring(followMouseScale, springConfig);
 
+  // 监听鼠标移动、按下和抬起事件以更新光标位置和状态
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       if (cursorType.mode === "default" || cursorType.mode === "line") {
@@ -52,7 +60,9 @@ export default function Cursor() {
     };
   }, [cursorType.mode, primaryMouseX, primaryMouseY]);
 
+  // 监听鼠标按下和抬起事件以更新光标缩放状态
   useEffect(() => {
+    // 鼠标按下时缩小光标
     const handleMouseDown = () => {
       if (cursorType.mode === "default") {
         followMouseScale.set(0.8);
@@ -60,6 +70,7 @@ export default function Cursor() {
       }
     };
 
+    // 鼠标抬起时恢复光标大小
     const handleMouseUp = () => {
       if (cursorType.mode === "default") {
         followMouseScale.set(1);
@@ -76,8 +87,10 @@ export default function Cursor() {
     };
   }, [cursorType.mode, followMouseScale, scale]);
 
+  // 根据 cursorType 的变化更新光标的外观和行为
   useEffect(() => {
     if (cursorType.mode === "wrap" && cursorType.elementInfo) {
+      // 获取元素的信息并设置光标样式
       const {
         width: elWidth,
         height: elHeight,

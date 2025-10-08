@@ -2,6 +2,7 @@
 
 import Toolbar from "./components/Toolbar";
 
+// 主页界面
 export default function Home() {
   return (
     <main className="flex flex-col w-full min-h-[200dvh] pt-[var(--header-h)]">

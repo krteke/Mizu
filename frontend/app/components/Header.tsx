@@ -6,16 +6,20 @@ import SearchBar from "./SearchBar";
 import ScrollProgress from "./ScrollProgress";
 
 export default function Header() {
+  // 定义滚动方向的类型
   type ScrollDirection = "up" | "down" | null;
 
+  // 使用状态来跟踪滚动方向和上次的滚动位置
   const [scrollDir, setScrollDir] = useState<ScrollDirection>(null);
   const [lastScrollY, setLastScrollY] = useState<number>(0);
 
+  // 监听滚动事件以更新滚动方向
   useEffect(() => {
+    // 滚动处理函数
     const scrollHandler = () => {
-      // const header = document.querySelector("header");
       const currentScrollY = window.scrollY;
-      // setLastScrollY(currentScrollY);
+
+      // 判断滚动方向并更新状态
       if (currentScrollY > lastScrollY) {
         if (scrollDir !== "down") {
           setScrollDir("down");
@@ -25,11 +29,14 @@ export default function Header() {
           setScrollDir("up");
         }
       }
+
+      // 如果滚动位置为顶部，重置滚动方向
       if (currentScrollY === 0) {
         if (scrollDir !== null) {
           setScrollDir(null);
         }
       }
+
       setLastScrollY(currentScrollY);
     };
 
@@ -39,6 +46,7 @@ export default function Header() {
     };
   }, [lastScrollY, scrollDir]);
 
+  // 根据滚动方向设置头部的类名
   let headerClass;
   if (scrollDir === "down") {
     headerClass = "top-0 left-0 right-0";

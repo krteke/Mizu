@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 
+// 一个显示页面滚动进度的组件
 export default function ScrollProgress() {
   const [scrollPercent, setScrollPercent] = useState(0);
 
+  // 监听滚动事件，计算滚动百分比
   useEffect(() => {
     const scrollHandler = () => {
       const scrollTop = document.documentElement.scrollTop || 0;
