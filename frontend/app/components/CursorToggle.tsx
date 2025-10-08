@@ -1,8 +1,8 @@
 "use client";
 
 import { useContext } from "react";
-import MagneticElement from "./magnetic-element";
-import { CursorContext } from "../context/cursor_context";
+import MagneticElement from "./MagneticElement";
+import { CursorContext } from "../context/CursorContext";
 import DefaultCursor from "../assets/default-cursor.svg";
 import CustomCursor from "../assets/custom-cursor.svg";
 
@@ -14,14 +14,14 @@ export default function CursorToggle() {
 
   const { isCustomCursor, setIsCustomCursor } = context;
 
-  function change_cursor() {
+  function changeCursor() {
     setIsCustomCursor((prev) => !prev);
   }
 
   return (
     <MagneticElement mode="wrap">
       <button
-        onClick={change_cursor}
+        onClick={changeCursor}
         className="relative flex h-9 w-9 rounded-[44%] justify-center items-center cursor-pointer shadow-button bg-[#d0d0d0] dark:bg-[#848484] border-none top-[30px] transition-[box-shadow transform] duration-[400ms] ease-in-out hover:translate-y-[-2px] hover:shadow-button-hover hover:scale-105"
       >
         <div

@@ -2,7 +2,7 @@
 
 import { useContext, useEffect } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
-import { CursorContext } from "../context/cursor_context";
+import { CursorContext } from "../context/CursorContext";
 
 export default function Cursor() {
   const context = useContext(CursorContext);
@@ -97,7 +97,6 @@ export default function Cursor() {
       if (typeof elBorderRadius === "string") {
         borderRadius.set(elBorderRadius);
       }
-      // backgroundColor.set("gray");
     } else if (cursorType.mode === "line" && cursorType.textHeight) {
       const textHeight = cursorType.textHeight;
 
@@ -112,7 +111,6 @@ export default function Cursor() {
       primaryHeight.set(15);
       primaryWidth.set(15);
       borderRadius.set("50%");
-      // backgroundColor.set("gray");
       followMouseScale.set(1);
     }
   }, [
@@ -146,7 +144,6 @@ export default function Cursor() {
           height: smoothPrimaryHeight,
           borderRadius: smoothBorderRadius,
         }}
-        // transition={{ type: "spring", ...springConfig }}
       />
       <motion.div
         style={{
@@ -163,7 +160,6 @@ export default function Cursor() {
           borderRadius: smoothBorderRadius,
           backgroundColor: smoothBackgroundColor,
           scale: smoothFollowerScale,
-          // mixBlendMode: "difference",
         }}
         transition={{ type: "spring", ...springConfig }}
       />

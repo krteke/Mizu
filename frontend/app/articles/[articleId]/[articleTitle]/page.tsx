@@ -1,4 +1,4 @@
-import ArticleContainer from "@/app/components/article-container";
+import ArticleContainer from "@/app/components/ArticleContainer";
 import notFound from "@/app/not-found";
 import { ArticleDigital } from "@/types/types";
 

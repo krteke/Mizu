@@ -1,6 +1,6 @@
 "use client";
 import Bottom from "../assets/bottom.svg";
-import MagneticElement from "./magnetic-element";
+import MagneticElement from "./MagneticElement";
 
 export default function ScrollToBottom() {
   function scrollToBottom() {

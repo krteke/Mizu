@@ -2,7 +2,7 @@
 
 import { useMotionValue, useSpring, motion } from "framer-motion";
 import React, { ReactElement, useContext, useRef } from "react";
-import { CursorContext } from "../context/cursor_context";
+import { CursorContext } from "../context/CursorContext";
 
 type MagneticElementProps = {
   children: ReactElement;

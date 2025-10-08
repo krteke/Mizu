@@ -4,7 +4,7 @@ import { useTheme } from "next-themes";
 import Sun from "../assets/sun.svg";
 import Moon from "../assets/moon.svg";
 import { useEffect, useState } from "react";
-import MagneticElement from "./magnetic-element";
+import MagneticElement from "./MagneticElement";
 
 export default function ThemeToggle() {
   const { theme, setTheme } = useTheme();

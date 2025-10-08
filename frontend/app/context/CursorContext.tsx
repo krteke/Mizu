@@ -43,6 +43,8 @@ export const CursorProvider = ({ children }: { children: ReactNode }) => {
 
     if (customCursor) {
       setIsCustomCursor(JSON.parse(customCursor));
+    } else {
+      setIsCustomCursor(false);
     }
   }, []);
 

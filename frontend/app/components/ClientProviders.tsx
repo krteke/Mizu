@@ -2,8 +2,8 @@
 
 import React, { ReactNode, useContext, useEffect } from "react";
 import { useIsMobile } from "../hooks/useIsMobile";
-import { CursorContext, CursorProvider } from "../context/cursor_context";
-import Cursor from "./cursor";
+import { CursorContext, CursorProvider } from "../context/CursorContext";
+import Cursor from "./Cursor";
 import { ThemeProvider } from "next-themes";
 
 export default function ClientProviders({ children }: { children: ReactNode }) {

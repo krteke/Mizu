@@ -1,5 +1,5 @@
 import { ArticleCard } from "@/types/types";
-import ArticleList from "../components/article-list";
+import ArticleList from "../components/ArticleList";
 
 async function getArticleList(): Promise<ArticleCard[]> {
   try {
