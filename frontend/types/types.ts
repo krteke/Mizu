@@ -1,5 +1,10 @@
+// 文章类别
 export type category = "article" | "pictures" | "think" | "note" | "talk";
 
+// 点击ScrollToEdge时的滑动方向
+export type scrollDir = "top" | "bottom";
+
+// 文章的详细信息
 export interface ArticleDigital {
   title: string;
   summary: string;
@@ -9,6 +14,7 @@ export interface ArticleDigital {
   updated_at: string;
 }
 
+// 文章卡片信息
 export interface ArticleCard {
   id: string;
   title: string;

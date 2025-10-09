@@ -26,7 +26,7 @@ export default function CursorToggle() {
     <MagneticElement mode="wrap">
       <button
         onClick={changeCursor}
-        className="relative flex h-9 w-9 rounded-[44%] justify-center items-center cursor-pointer shadow-button bg-[#d0d0d0] dark:bg-[#848484] border-none top-[30px] transition-[box-shadow transform] duration-[400ms] ease-in-out hover:translate-y-[-2px] hover:shadow-button-hover hover:scale-105"
+        className="relative flex h-9 w-9 rounded-[44%] justify-center items-center cursor-pointer bg-[#d0d0d0] dark:bg-[#848484] transition-box-transform duration-[400ms] ease-in-out hover:scale-105"
       >
         <div
           className={`${

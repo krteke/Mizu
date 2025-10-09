@@ -9,7 +9,7 @@ import MagneticElement from "./MagneticElement";
 // 一个切换主题的按钮组件
 export default function ThemeToggle() {
   // 使用 useTheme 来获取和设置主题
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
 
@@ -24,7 +24,7 @@ export default function ThemeToggle() {
   }
 
   // 根据主题设置 isDark
-  let isDark = theme === "dark";
+  let isDark = resolvedTheme === "dark";
   // 切换主题的函数
   function changeTheme() {
     isDark = !isDark;
@@ -58,6 +58,9 @@ export default function ThemeToggle() {
         Math.max(y, innerHeight - y)
       );
 
+      // const isTransitioningToDark =
+      // theme === "light" || (theme === "system" && resolvedTheme === "light");
+
       // 定义 clip-path 动画的起点和终点
       const clipPath = [
         `circle(0px at ${x}px ${y}px)`,
@@ -83,7 +86,7 @@ export default function ThemeToggle() {
   return (
     <MagneticElement mode="wrap">
       <button
-        className="bg-[#d0d0d0] dark:bg-[#848484] relative flex justify-center shadow-button w-9 h-9 rounded-[44%] border-none cursor-pointer transition-[box-shadow transform] duration-[400ms] ease-in-out transform-gpu hover:translate-y-[-2px] hover:shadow-button-hover hover:scale-105"
+        className="bg-[#d0d0d0] dark:bg-[#848484] relative flex justify-center shadow-button w-9 h-9 rounded-[44%] cursor-pointer transition-transform duration-[400ms] ease-in-out transform-gpu hover:scale-105"
         id="theme-toggle-button"
         onClick={updateView}
       >

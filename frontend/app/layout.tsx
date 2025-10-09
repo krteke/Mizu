@@ -4,6 +4,7 @@ import "@/app/globals.css";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import ClientProviders from "@/app/components/ClientProviders";
+import FloatingMenu from "./components/FloatingMenu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,9 +33,10 @@ export default function RootLayout({
       >
         <ClientProviders>
           <Header />
-          <div className="flex w-full min-h-dvh items-center justify-center">
+          <main className="flex w-full min-h-dvh items-center justify-center">
             {children}
-          </div>
+            <FloatingMenu />
+          </main>
           <Footer />
         </ClientProviders>
       </body>
