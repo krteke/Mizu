@@ -1,12 +1,12 @@
 use axum::{
     Json,
-    extract::{Query, State},
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::{
-    common::{AppState, PostResponse},
+    common::{AppState, Article, PostResponse},
     some_errors::{GetPostsError, Result},
 };
 
@@ -65,6 +65,25 @@ pub async fn get_posts(
     Ok(Json(query_results))
 }
 
+pub async fn get_post_digital(
+    Path((category, id)): Path<(String, String)>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Article>> {
+    let pool = &state.db_pool;
+
+    let result = sqlx::query_as!(
+        Article,
+        "SELECT * FROM articles WHERE category = $1 AND id = $2",
+        category,
+        id
+    )
+    .fetch_optional(pool)
+    .await?
+    .ok_or(GetPostsError::ArticleNotFound)?;
+
+    Ok(Json(result))
+}
+
 // 使用 #[cfg(test)] 宏，表示这个模块只在测试时编译
 #[cfg(test)]
 mod tests {
@@ -89,7 +108,7 @@ mod tests {
             .expect("Failed to connect to database for testing");
 
         // 初始化 SearchService
-        let search_service = SearchService::new(&config, "test_index".to_string())
+        let search_service = SearchService::new(&config, "test_index")
             .await
             .expect("Failed to create SearchService for testing");
 

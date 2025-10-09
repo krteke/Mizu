@@ -18,6 +18,7 @@ const PAGE_ITEMS: usize = 6;
 const DEFAULT_SEARCH_INDEX: &str = "articles";
 
 // 定义一个枚举来区分不同权限的 Meilisearch 客户端
+#[derive(Debug, Clone, Copy)]
 pub enum ClientType {
     Search, // 仅用于搜索
     Admin,  // 用于管理操作，如添加/删除文档
@@ -33,18 +34,18 @@ pub struct SearchService {
 
 impl SearchService {
     // SearchService 的构造函数，用于创建一个新的实例
-    pub async fn new(config: &Config, index_name: String) -> Result<Self> {
+    pub async fn new(config: &Config, index_name: &str) -> Result<Self> {
         // 获取 Meilisearch 服务的 URL
         let meili_search_url = &config.meilisearch_url;
 
         // 使用主密钥创建一个临时的 master 客户端，用于获取其他 API Key
-        let master_client = Self::create_master_client(config)?;
+        let master_client = &Self::create_master_client(config)?;
         // 检查 Meilisearch 服务是否健康
         master_client.health().await?;
 
         // 获取管理员 API Key 和 搜索 API Key
-        let admin_key = get_key(&master_client, ApiKeyType::Admin).await?;
-        let search_key = get_key(&master_client, ApiKeyType::Search).await?;
+        let admin_key = get_standard_key(master_client, StandardApiKey::Admin).await?;
+        let search_key = get_standard_key(master_client, StandardApiKey::Search).await?;
 
         // 使用获取到的 Key 分别创建具有不同权限的客户端
         let admin_client = Client::new(meili_search_url, Some(admin_key))?;
@@ -54,7 +55,7 @@ impl SearchService {
         Ok(Self {
             admin_client,
             search_client,
-            index_name,
+            index_name: index_name.to_string(),
         })
     }
 
@@ -101,11 +102,10 @@ impl SearchService {
 }
 
 // 定义一个枚举来表示不同类型的 API Key
-#[derive(Debug)]
-enum ApiKeyType {
-    Search,        // 搜索 Key
-    Admin,         // 管理 Key
-    Other(String), // 其他自定义 Key
+#[derive(Debug, Clone, Copy)]
+enum StandardApiKey {
+    Search, // 搜索 Key
+    Admin,  // 管理 Key
 }
 
 // 定义搜索请求的查询参数结构体
@@ -177,8 +177,8 @@ pub async fn get_search_results(
                 id: r.result.id.clone(),
                 category: r.result.category.clone(),
                 title: r.result.title.clone(),
-                summary: "".to_string(),
-                content: "".to_string(),
+                summary: String::new(),
+                content: String::new(),
             };
 
             // 如果有格式化（高亮和裁剪）的结果，则使用它们
@@ -250,28 +250,39 @@ async fn get_api_keys(config: &Config) -> Result<Vec<Key>> {
 }
 
 // 异步函数，根据类型获取特定的 API Key
-async fn get_key(client: &Client, key_type: ApiKeyType) -> Result<String> {
+async fn get_standard_key(client: &Client, key_type: StandardApiKey) -> Result<String> {
     // 根据 key_type 确定要查找的 Key 的名称
     let key_name = match &key_type {
-        ApiKeyType::Admin => "Default Admin API Key",
-        ApiKeyType::Search => "Default Search API Key",
-        ApiKeyType::Other(t) => t,
+        StandardApiKey::Admin => "Default Admin API Key",
+        StandardApiKey::Search => "Default Search API Key",
     };
 
     // 获取所有的 Key
     let keys = client.get_keys().await?.results;
 
     // 查找具有指定名称的 Key
-    if let Some(key) = keys.iter().find(|k| k.name.as_deref() == Some(key_name)) {
+    if let Some(key) = keys.iter().find(|&k| k.name.as_deref() == Some(key_name)) {
         return Ok(key.key.clone());
     }
 
     // 如果找不到，则返回错误
     match key_type {
-        ApiKeyType::Admin => Err(SearchError::DefaultAdminApiKeyNotFound.into()),
-        ApiKeyType::Search => Err(SearchError::DefaultSearchApiKeyNotFound.into()),
-        ApiKeyType::Other(name) => Err(SearchError::KeyNameNotFound(name).into()),
+        StandardApiKey::Admin => Err(SearchError::DefaultAdminApiKeyNotFound.into()),
+        StandardApiKey::Search => Err(SearchError::DefaultSearchApiKeyNotFound.into()),
     }
+}
+
+async fn get_custom_key(client: &Client, key_name: &str) -> Result<String> {
+    // 获取所有的 Key
+    let keys = client.get_keys().await?.results;
+
+    // 查找具有指定名称的 Key
+    if let Some(key) = keys.iter().find(|&k| k.name.as_deref() == Some(key_name)) {
+        return Ok(key.key.clone());
+    }
+
+    // 如果找不到，则返回错误
+    Err(SearchError::CustomApiKeyNotFound(key_name.to_string()).into())
 }
 
 #[cfg(test)]
@@ -285,7 +296,7 @@ mod tests {
     async fn setup_test_app_state_for_search() -> AppState {
         dotenvy::dotenv().ok();
         let config = Config::from_env().expect("Failed to load config for testing");
-        let search_service = SearchService::new(&config, DEFAULT_SEARCH_INDEX.to_string())
+        let search_service = SearchService::new(&config, DEFAULT_SEARCH_INDEX)
             .await
             .expect("Failed to create SearchService for testing");
         // 清理旧的测试数据

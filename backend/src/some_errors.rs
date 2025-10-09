@@ -20,7 +20,7 @@ pub enum SearchError {
     DefaultAdminApiKeyNotFound,
     // 找不到指定名称的 API 密钥
     #[error("Can not found this key, it is {0}, is it valid?")]
-    KeyNameNotFound(String),
+    CustomApiKeyNotFound(String),
 }
 
 // --- DBError ---
@@ -42,6 +42,9 @@ pub enum GetPostsError {
     // 无效的文章分类
     #[error("Invalid Category type.")]
     CategoryError,
+    // 文章未找到
+    #[error("Article not found")]
+    ArticleNotFound,
 }
 
 // --- SomeError ---
@@ -103,7 +106,7 @@ impl IntoResponse for SomeError {
             SomeError::Search(
                 SearchError::DefaultSearchApiKeyNotFound
                 | SearchError::DefaultAdminApiKeyNotFound
-                | SearchError::KeyNameNotFound(_),
+                | SearchError::CustomApiKeyNotFound(_),
             ) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Search service misconfigured",
@@ -119,6 +122,11 @@ impl IntoResponse for SomeError {
             SomeError::GetPosts(GetPostsError::CategoryError) => (
                 StatusCode::BAD_REQUEST,
                 "Something was invalid in requests.",
+            ),
+
+            SomeError::GetPosts(GetPostsError::ArticleNotFound) => (
+                StatusCode::NOT_FOUND,
+                "The article is not found in the database.",
             ),
 
             // 所有其他未预料到的内部错误

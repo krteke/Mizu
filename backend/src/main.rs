@@ -1,10 +1,11 @@
 use axum::routing::{get, put};
+use backend::handle_404;
 use mimalloc::MiMalloc;
 use sqlx::postgres::PgPoolOptions;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use crate::{
-    articles::get_posts,
+    articles::{get_post_digital, get_posts},
     common::AppState,
     search::{SearchService, get_search_results},
 };
@@ -57,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 克隆 JWT 密钥，用于后续的应用状态共享。
     let jwt_secret = config.jwt_secret.clone();
     // 异步初始化搜索服务。
-    let search_service = SearchService::new(&config, DEFAULT_INDEX_NAME.to_string()).await?;
+    let search_service = SearchService::new(&config, DEFAULT_INDEX_NAME).await?;
 
     // 设置数据库连接池选项。
     let pool = PgPoolOptions::new()
@@ -82,14 +83,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 当收到对 "/search" 的 GET 请求时，调用 get_search_results 函数处理。
         .route("/search", get(get_search_results))
         // 当收到对 "/posts" 的 GET 请求时，调用 get_posts 函数处理。
-        .route("/posts", get(get_posts));
+        .route("/posts", get(get_posts))
+        // 当收到对 "/posts/:category/:id" 的 GET 请求时，调用 get_post_digital 函数处理。
+        .route("/posts/:category/:id", get(get_post_digital));
+
     // .route("/blog-update/:id", put("")); // 这是一个被注释掉的路由示例
 
     // 创建主路由器，并将 API 路由器嵌套在 "/api" 路径下。
     let router = axum::Router::new()
         .nest("/api", api_router)
         // 将共享的应用状态 state 注入到路由器中，这样所有处理器都可以访问它。
-        .with_state(state);
+        .with_state(state)
+        .fallback(handle_404);
 
     // 启动 axum 服务器，监听传入的连接。
     if let Err(e) = axum::serve(listener, router).await {
