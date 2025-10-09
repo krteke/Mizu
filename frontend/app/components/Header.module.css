@@ -11,16 +11,24 @@
     @apply transition-all duration-300 ease-in-out;
 }
 
+.header {
+    @apply top-0 left-0 right-0;
+}
+
+.isShrunken {
+    @apply top-4 rounded-full border shadow-md;
+
+    @apply left-1/2 -translate-x-1/2;
+
+    @apply w-auto max-w-4xl;
+}
+
 .container {
     /* 基础样式：flex 布局，两端对齐 */
-    @apply flex w-full h-full items-center justify-between;
+    @apply flex w-full h-full items-center justify-between px-2;
 
     /* 宽度控制：设置最大宽度，并使用标准断点 */
-    @apply max-w-7xl;
-    /* 替换 w-4xl，7xl 更大一些 */
-
-    /* @apply max-w-7xl lg:max-w-4xl md:max-w-2xl; */
-    @apply max-w-7xl lg:max-w-4xl md:max-w-2xl;
+    @apply max-w-4xl;
 }
 
 .start,

@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SearchBar from "./SearchBar";
 import ScrollProgress from "./ScrollProgress";
 import NavigateBar from "./NavigateBar";
+import styles from "./Header.module.css";
+import clsx from "clsx";
+
+// 定义滚动方向的类型
+type ScrollDirection = "up" | "down" | null;
 
 export default function Header() {
-  // 定义滚动方向的类型
-  type ScrollDirection = "up" | "down" | null;
-
-  // 使用状态来跟踪滚动方向和上次的滚动位置
-  const [scrollDir, setScrollDir] = useState<ScrollDirection>(null);
-  const [lastScrollY, setLastScrollY] = useState<number>(0);
+  const [scrollDir, setScrollDir] = useState<ScrollDirection>(null); // 当前滚动方向
+  const lastScrollY = useRef<number>(0); // 上一次的滚动位置
 
   // 监听滚动事件以更新滚动方向
   useEffect(() => {
@@ -20,14 +21,12 @@ export default function Header() {
       const currentScrollY = window.scrollY;
 
       // 判断滚动方向并更新状态
-      if (currentScrollY > lastScrollY) {
-        if (scrollDir !== "down") {
-          setScrollDir("down");
-        }
-      } else if (currentScrollY < lastScrollY) {
-        if (scrollDir !== "up") {
-          setScrollDir("up");
-        }
+      if (currentScrollY < 10) {
+        setScrollDir(null);
+      } else if (currentScrollY > lastScrollY.current) {
+        setScrollDir("down");
+      } else {
+        setScrollDir("up");
       }
 
       // 如果滚动位置为顶部，重置滚动方向
@@ -44,7 +43,7 @@ export default function Header() {
     return () => {
       window.removeEventListener("scroll", scrollHandler);
     };
-  }, [lastScrollY, scrollDir]);
+  }, []);
 
   // 根据滚动方向设置头部的类名
   let headerClass;
