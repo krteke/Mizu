@@ -56,6 +56,7 @@ pub struct SearchHit {
 // 定义获取文章列表接口的响应结构体
 #[derive(Serialize, Deserialize)]
 pub struct PostResponse {
+    pub id: String,
     // 文章标题
     pub title: String,
     // 文章标签

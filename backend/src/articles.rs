@@ -49,9 +49,9 @@ pub async fn get_posts(
     // 这个宏在编译时检查 SQL 查询的语法和类型，并将查询结果直接映射到 PostResponse 结构体
     let query_results = sqlx::query_as!(
         PostResponse,
-        // SQL 查询语句：从 `articles` 表中选择 `title`, `tags`, 和 `content` 列
+        // SQL 查询语句：从 `articles` 表中选择 `id`, `title`, `tags`, 和 `content` 列
         // WHERE 子句根据传入的分类进行筛选
-        "SELECT title, tags, content FROM articles WHERE category = $1",
+        "SELECT id, title, tags, content FROM articles WHERE category = $1",
         // 将 `params.category` 作为查询参数绑定到 $1
         &params.category
     )

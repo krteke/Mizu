@@ -26,6 +26,8 @@ static GLOBAL: MiMalloc = MiMalloc;
 const DEFAULT_PORT: u16 = 8124; // 默认端口号
 const DEFAULT_HOST: &str = "0.0.0.0"; // 默认主机地址，监听所有网络接口
 const DEFAULT_INDEX_NAME: &str = "articles"; // 默认的搜索索引名称
+const DEFAULT_MAX_CONNECTIONS: u32 = 1000; // 默认的最大连接数
+// const DEFAULT_MAX_CONNECTIONS_PER_IP: u32 = 100; // 默认的每个 IP 的最大连接数
 
 // 使用 #[tokio::main] 宏来标记异步主函数，tokio 运行时会自动处理。
 #[tokio::main]
@@ -59,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 设置数据库连接池选项。
     let pool = PgPoolOptions::new()
-        .max_connections(20) // 最大连接数为 20
+        .max_connections(DEFAULT_MAX_CONNECTIONS)
         .acquire_timeout(Duration::from_secs(3)) // 获取连接的超时时间为 3 秒
         .connect(&config.database_url) // 连接到数据库
         .await // 等待连接完成

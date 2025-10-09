@@ -220,7 +220,7 @@ pub async fn create_search_index(State(state): State<Arc<AppState>>) -> Result<(
         .await?;
 
     // 设置可搜索的属性
-    let searchable_attributes = ["title", "tags", "content"];
+    let searchable_attributes = ["title", "content", "summary"];
     client
         .index(DEFAULT_SEARCH_INDEX)
         .set_filterable_attributes(&searchable_attributes)
