@@ -21,3 +21,18 @@ export interface ArticleCard {
   tags: string[];
   content: string;
 }
+
+export interface SearchResponse {
+  total_hints: number;
+  total_pages: number;
+  current_page: number;
+  results: SearchHit[];
+}
+
+export interface SearchHit {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  content: string;
+}

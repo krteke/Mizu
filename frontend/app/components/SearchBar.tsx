@@ -8,15 +8,7 @@ import Link from "next/link";
 import Caption from "../assets/caption.svg";
 import Aritcle from "../assets/article.svg";
 import Paragraph from "../assets/paragraph.svg";
-
-// 搜索结果的类型定义
-interface SearchResult {
-  id: string;
-  title: string;
-  content: Array<string>;
-}
-
-type contentType = "caption" | "paragraph";
+import { SearchHit, SearchResponse } from "@/types/types";
 
 // 一个搜索栏组件，带有展开动画和搜索结果显示功能
 export default function SearchBar({ placeholder }: { placeholder: string }) {
@@ -25,7 +17,7 @@ export default function SearchBar({ placeholder }: { placeholder: string }) {
   // 控制是否正在查询
   const [query, setQuery] = useState(false);
   // 存储搜索结果
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<SearchHit[]>([]);
   // 引用输入框和容器元素
   const inputRef = useRef<HTMLInputElement>(null);
   // 引用加载更多的元素
@@ -87,14 +79,14 @@ export default function SearchBar({ placeholder }: { placeholder: string }) {
           `/api/search?q=${encodeURIComponent(term)}&page=${page}`
         );
 
-        const data = await response.json();
+        const data: SearchResponse = await response.json();
         // 更新搜索结果
         setResults((prevResults) =>
           page === 1 ? data.results : [...prevResults, ...data.results]
         );
 
         // 如果没有更多结果，更新状态
-        if (data.results.length === 0 || page >= data.pages) {
+        if (data.results.length === 0 || page >= data.total_pages) {
           setHasMore(false);
         }
       } catch (error) {
@@ -204,14 +196,21 @@ export default function SearchBar({ placeholder }: { placeholder: string }) {
                   return (
                     <div key={result.id} className="h-13 w-full pl-2 pr-2 pt-1">
                       <Link
-                        href={"#"}
+                        href={
+                          "/" +
+                          result.category +
+                          "/" +
+                          result.id +
+                          "/" +
+                          result.title
+                        }
                         className="w-full h-full items-center flex"
                       >
                         <div className="w-6 h-6 absolute">
                           <Aritcle />
                         </div>
                         <div className="w-full h-full items-center flex overflow-hidden hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-lg p-1 pl-7">
-                          {result.title + result.id}
+                          // Todo
                         </div>
                       </Link>
                     </div>
