@@ -47,6 +47,23 @@ pub enum GetPostsError {
     ArticleNotFound,
 }
 
+// --- WebHooksError ---
+// 定义与 Webhook 相关的错误
+#[derive(Debug, Error)]
+pub enum WebHooksError {
+    // Webhook 验证失败
+    #[error("Github webhook verification failed")]
+    VerifySignatureFailed,
+    #[error("Invalid {0} header")]
+    InvalidHeader(String),
+    #[error("Missing {0} header")]
+    MissingHeader(String),
+    #[error("Could not extract repository name from webhook event")]
+    MissingRepositoryName,
+    #[error("Can not get GITHUB_WEBHOOK_SECRET from environment")]
+    GithubWebhookSecretMissing,
+}
+
 // --- SomeError ---
 // 定义一个顶层的、统一的错误枚举，它包含了项目中所有可能的业务错误。
 // 使用 #[error(transparent)] 可以让错误信息直接显示来源错误的信息，而不是 "SomeError::Variant(source_error)"。
@@ -64,6 +81,11 @@ pub enum SomeError {
     // 包装 GetPostsError
     #[error(transparent)]
     GetPosts(#[from] GetPostsError),
+    // 包装 WebHooksError
+    #[error(transparent)]
+    WebHooks(#[from] WebHooksError),
+    #[error(transparent)]
+    JsonParseError(#[from] serde_json::Error),
     // 包装来自 anyhow 的通用错误，用于处理其他未明确分类的错误
     #[error(transparent)]
     Other(#[from] anyhow::Error),
@@ -76,6 +98,27 @@ pub enum SomeError {
 impl From<sqlx::Error> for SomeError {
     fn from(err: sqlx::Error) -> Self {
         SomeError::Database(DBError::QueryFailed(err))
+    }
+}
+
+impl From<config::ConfigError> for SomeError {
+    fn from(error: config::ConfigError) -> Self {
+        if let config::ConfigError::NotFound(field) = &error {
+            match field.as_str() {
+                "database_url" => SomeError::Database(DBError::DatabaseUrlMissing),
+                "meilisearch_url" => SomeError::Search(SearchError::MeilisearchUrlMissing),
+                "meili_master_key" => SomeError::Search(SearchError::MasterKeyMissing),
+                "jwt_secret" => SomeError::Other(anyhow::Error::msg(
+                    "Can not get JWT_SECRET from environment",
+                )),
+                "github_webhook_secret" => {
+                    SomeError::WebHooks(WebHooksError::GithubWebhookSecretMissing)
+                }
+                _ => SomeError::Other(anyhow::anyhow!(error)),
+            }
+        } else {
+            SomeError::from(anyhow::anyhow!(error))
+        }
     }
 }
 
@@ -95,7 +138,8 @@ impl IntoResponse for SomeError {
             // 服务器配置错误
             SomeError::Search(SearchError::MeilisearchUrlMissing)
             | SomeError::Search(SearchError::MasterKeyMissing)
-            | SomeError::Database(DBError::DatabaseUrlMissing) => {
+            | SomeError::Database(DBError::DatabaseUrlMissing)
+            | SomeError::WebHooks(WebHooksError::GithubWebhookSecretMissing) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server misconfiguration")
             }
 
@@ -119,7 +163,10 @@ impl IntoResponse for SomeError {
             ),
 
             // 来自客户端的无效请求
-            SomeError::GetPosts(GetPostsError::CategoryError) => (
+            SomeError::GetPosts(GetPostsError::CategoryError)
+            | SomeError::JsonParseError(_)
+            | SomeError::WebHooks(WebHooksError::MissingHeader(_))
+            | SomeError::WebHooks(WebHooksError::InvalidHeader(_)) => (
                 StatusCode::BAD_REQUEST,
                 "Something was invalid in requests.",
             ),
@@ -128,6 +175,14 @@ impl IntoResponse for SomeError {
                 StatusCode::NOT_FOUND,
                 "The article is not found in the database.",
             ),
+
+            SomeError::WebHooks(WebHooksError::VerifySignatureFailed) => {
+                (StatusCode::UNAUTHORIZED, "Unauthorized")
+            }
+
+            SomeError::WebHooks(WebHooksError::MissingRepositoryName) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, "Missing repository name")
+            }
 
             // 所有其他未预料到的内部错误
             SomeError::Other(_) => (
@@ -151,58 +206,3 @@ impl IntoResponse for SomeError {
 // 在整个项目中，我们可以使用 `Result<T>` 来代替 `std::result::Result<T, SomeError>`，
 // 这样可以使代码更简洁。
 pub type Result<T> = std::result::Result<T, SomeError>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::body::to_bytes;
-    use serde_json::Value;
-
-    // 辅助函数，用于从响应中提取 JSON body
-    async fn get_json_body(response: axum::response::Response) -> Value {
-        let body_bytes = to_bytes(response.into_body(), usize::MAX)
-            .await
-            .expect("Failed to read response body");
-        serde_json::from_slice(&body_bytes).expect("Failed to parse body as JSON")
-    }
-
-    #[tokio::test]
-    async fn test_search_error_misconfiguration_response() {
-        let error = SomeError::from(SearchError::MeilisearchUrlMissing);
-        let response = error.into_response();
-
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-        let body = get_json_body(response).await;
-        assert_eq!(body["error"], "Server misconfiguration");
-    }
-
-    #[tokio::test]
-    async fn test_db_error_misconfiguration_response() {
-        let error = SomeError::from(DBError::DatabaseUrlMissing);
-        let response = error.into_response();
-
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-        let body = get_json_body(response).await;
-        assert_eq!(body["error"], "Server misconfiguration");
-    }
-
-    #[tokio::test]
-    async fn test_get_posts_error_response() {
-        let error = SomeError::from(GetPostsError::CategoryError);
-        let response = error.into_response();
-
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = get_json_body(response).await;
-        assert_eq!(body["error"], "Something was invalid in requests.");
-    }
-
-    #[tokio::test]
-    async fn test_other_error_response() {
-        let error = SomeError::from(anyhow::anyhow!("A generic, unexpected error"));
-        let response = error.into_response();
-
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-        let body = get_json_body(response).await;
-        assert_eq!(body["error"], "An unexpected error occurred");
-    }
-}

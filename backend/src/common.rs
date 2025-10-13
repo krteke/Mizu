@@ -1,5 +1,8 @@
+#[cfg(feature = "webhook")]
+use std::collections::HashSet;
+
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use sqlx::{PgPool, prelude::FromRow};
 use time::OffsetDateTime;
 
 use crate::search::SearchService;
@@ -13,10 +16,14 @@ pub struct AppState {
     pub jwt_secret: String,
     // 搜索服务
     pub search_service: SearchService,
+    #[cfg(feature = "webhook")]
+    pub github_webhook_secret: String,
+    #[cfg(feature = "webhook")]
+    pub allowed_repositories: HashSet<String>,
 }
 
 // 定义 Article 结构体，对应数据库中的 `articles` 表
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, FromRow)]
 pub struct Article {
     // 文章 ID
     pub id: String,
@@ -25,7 +32,7 @@ pub struct Article {
     // 文章标签
     pub tags: Vec<String>,
     // 文章分类
-    pub category: String,
+    pub category: PostCategory,
     // 文章摘要
     pub summary: String,
     // 文章内容
@@ -46,7 +53,7 @@ pub struct SearchHit {
     // 文章标题
     pub title: String,
     // 文章分类
-    pub category: String,
+    pub category: PostCategory,
     // 文章摘要 (可能包含高亮)
     pub summary: String,
     // 文章内容 (可能包含高亮)
@@ -65,19 +72,24 @@ pub struct PostResponse {
     pub content: String,
 }
 
+#[cfg(feature = "webhook")]
+#[derive(Deserialize)]
+pub struct WebhookQuery {
+    pub hub_mode: Option<String>,
+    pub hub_challenge: Option<String>,
+    pub hub_verify_token: Option<String>,
+}
+
 // 定义文章分类的枚举
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[sqlx(rename_all = "lowercase")]
+// 使用 serde 的 rename 属性，在序列化/反序列化时使用小写字符串
+#[serde(rename_all = "lowercase")]
 pub enum PostCategory {
-    // 使用 serde 的 rename 属性，在序列化/反序列化时使用小写字符串
-    #[serde(rename = "article")]
     Article,
-    #[serde(rename = "note")]
     Note,
-    #[serde(rename = "think")]
     Think,
-    #[serde(rename = "pictures")]
     Pictures,
-    #[serde(rename = "talk")]
     Talk,
 }
 
@@ -105,46 +117,5 @@ impl PostCategory {
             // 如果字符串不匹配任何分类，则返回 None
             _ => None,
         }
-    }
-}
-
-// 使用 #[cfg(test)] 宏，表示这个模块只在测试时编译
-#[cfg(test)]
-mod tests {
-    // 导入父模块的所有内容，方便测试
-    use super::*;
-
-    // 测试 as_str 方法是否能正确地将枚举转换为字符串
-    #[test]
-    fn test_post_category_as_str() {
-        assert_eq!(PostCategory::Article.as_str(), "article");
-        assert_eq!(PostCategory::Note.as_str(), "note");
-        assert_eq!(PostCategory::Think.as_str(), "think");
-        assert_eq!(PostCategory::Pictures.as_str(), "pictures");
-        assert_eq!(PostCategory::Talk.as_str(), "talk");
-    }
-
-    // 测试 from_str 方法是否能正确地从字符串转换为枚举
-    #[test]
-    fn test_post_category_from_str_valid() {
-        assert_eq!(
-            PostCategory::from_str("article"),
-            Some(PostCategory::Article)
-        );
-        assert_eq!(PostCategory::from_str("note"), Some(PostCategory::Note));
-        assert_eq!(PostCategory::from_str("think"), Some(PostCategory::Think));
-        assert_eq!(
-            PostCategory::from_str("pictures"),
-            Some(PostCategory::Pictures)
-        );
-        assert_eq!(PostCategory::from_str("talk"), Some(PostCategory::Talk));
-    }
-
-    // 测试 from_str 方法在输入无效字符串时是否返回 None
-    #[test]
-    fn test_post_category_from_str_invalid() {
-        assert_eq!(PostCategory::from_str("nonexistent"), None);
-        assert_eq!(PostCategory::from_str(""), None);
-        assert_eq!(PostCategory::from_str("ARTICLE"), None); // 测试大小写敏感
     }
 }

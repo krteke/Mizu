@@ -94,7 +94,7 @@ impl SearchService {
     // 创建一个使用主密钥的 Meilisearch 客户端
     fn create_master_client(config: &Config) -> Result<Client> {
         let meili_search_url = &config.meilisearch_url;
-        let key = &config.meilisearch_master_key;
+        let key = &config.meili_master_key;
 
         // 使用 URL 和主密钥初始化客户端
         Ok(Client::new(meili_search_url, Some(key))?)
@@ -228,7 +228,7 @@ pub async fn create_search_index(State(state): State<Arc<AppState>>) -> Result<(
 
     // 从数据库中获取所有文章
     let db_pool = &state.db_pool;
-    let db_articles = sqlx::query_as!(Article, "SELECT * FROM articles")
+    let db_articles = sqlx::query_as::<_, Article>("SELECT * FROM articles")
         .fetch_all(db_pool)
         .await?;
 
@@ -287,6 +287,8 @@ async fn get_custom_key(client: &Client, key_name: &str) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
     use crate::config::Config;
     use sqlx::PgPool;
@@ -309,10 +311,17 @@ mod tests {
             .await
             .expect("Failed to connect to db");
 
+        let github_webhook_secret =
+            std::env::var("GITHUB_WEBHOOK_SECRET").expect("GITHUB_WEBHOOK_SECRET not set");
+
+        let allowed_repositories = HashSet::new();
+
         AppState {
             db_pool,
             jwt_secret: config.jwt_secret.clone(),
             search_service,
+            github_webhook_secret,
+            allowed_repositories,
         }
     }
     // 辅助函数，创建一个测试文章
@@ -321,7 +330,7 @@ mod tests {
             id: id.to_string(),
             title: title.to_string(),
             tags: vec!["rust".to_string(), "testing".to_string()],
-            category: "article".to_string(),
+            category: crate::common::PostCategory::Article,
             summary: "This is a test article about searching.".to_string(),
             content: content.to_string(),
             status: "published".to_string(),
