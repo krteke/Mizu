@@ -62,6 +62,26 @@ pub enum WebHooksError {
     MissingRepositoryName,
     #[error("Can not get GITHUB_WEBHOOK_SECRET from environment")]
     GithubWebhookSecretMissing,
+    #[error("Unsupported webhook event")]
+    UnsupportedWebhookEvent,
+}
+
+#[cfg(feature = "webhook")]
+#[derive(Debug, Error)]
+pub enum DecodeError {
+    #[error(transparent)]
+    DecodeBase64(#[from] base64::DecodeError),
+    #[error(transparent)]
+    DecodeUtf8(#[from] std::string::FromUtf8Error),
+}
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error(transparent)]
+    JsonParseError(#[from] serde_json::Error),
+    #[cfg(feature = "webhook")]
+    #[error(transparent)]
+    ArticleParseError(#[from] gray_matter::Error),
 }
 
 // --- SomeError ---
@@ -85,7 +105,10 @@ pub enum SomeError {
     #[error(transparent)]
     WebHooks(#[from] WebHooksError),
     #[error(transparent)]
-    JsonParseError(#[from] serde_json::Error),
+    Parse(#[from] ParseError),
+    #[cfg(feature = "webhook")]
+    #[error(transparent)]
+    Decode(#[from] DecodeError),
     // 包装来自 anyhow 的通用错误，用于处理其他未明确分类的错误
     #[error(transparent)]
     Other(#[from] anyhow::Error),
@@ -122,78 +145,184 @@ impl From<config::ConfigError> for SomeError {
     }
 }
 
+#[cfg(feature = "webhook")]
+impl From<octocrab::Error> for SomeError {
+    fn from(value: octocrab::Error) -> Self {
+        SomeError::Other(value.into())
+    }
+}
+
+#[cfg(feature = "webhook")]
+impl From<base64::DecodeError> for SomeError {
+    fn from(value: base64::DecodeError) -> Self {
+        SomeError::Decode(value.into())
+    }
+}
+
+#[cfg(feature = "webhook")]
+impl From<std::string::FromUtf8Error> for SomeError {
+    fn from(value: std::string::FromUtf8Error) -> Self {
+        SomeError::Decode(value.into())
+    }
+}
+
+impl From<serde_json::Error> for SomeError {
+    fn from(value: serde_json::Error) -> Self {
+        SomeError::Parse(value.into())
+    }
+}
+
+#[cfg(feature = "webhook")]
+impl From<gray_matter::Error> for SomeError {
+    fn from(value: gray_matter::Error) -> Self {
+        SomeError::Parse(value.into())
+    }
+}
+
 // 为 SomeError 实现 axum 的 IntoResponse trait。
 // 这是将自定义错误类型与 axum Web 框架集成的关键。
 // 当处理器函数返回 Result<_, SomeError> 并且是 Err 时，axum 会调用这个方法
 // 将我们的自定义错误转换为一个标准的 HTTP 响应。
 impl IntoResponse for SomeError {
     fn into_response(self) -> axum::response::Response {
-        // 使用 tracing 记录内部错误信息，这对于调试非常重要。
-        // `%self` 会使用 `Display` trait 格式化错误，也就是 `#[error("...")]` 定义的内容。
-        tracing::error!(error = %self,"Unhandled application error");
-
-        // 根据具体的错误变体，匹配出对应的 HTTP 状态码和返回给用户的友好错误信息。
+        // 根据具体的错误变体，匹配出对应的 HTTP 状态码、错误代码和返回给用户的友好错误信息。
         // 这样做可以避免向客户端泄露敏感的内部实现细节。
-        let (status, user_message) = match &self {
-            // 服务器配置错误
+        // 对于 5xx 错误（服务器内部问题），只返回通用消息，详细信息仅记录在日志中。
+        let (status, error_code, user_message): (StatusCode, &str, &str) = match &self {
+            // 服务器配置错误 (5xx) - 不暴露具体配置细节
             SomeError::Search(SearchError::MeilisearchUrlMissing)
             | SomeError::Search(SearchError::MasterKeyMissing)
-            | SomeError::Database(DBError::DatabaseUrlMissing)
-            | SomeError::WebHooks(WebHooksError::GithubWebhookSecretMissing) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Server misconfiguration")
-            }
+            | SomeError::Search(SearchError::DefaultSearchApiKeyNotFound)
+            | SomeError::Search(SearchError::DefaultAdminApiKeyNotFound)
+            | SomeError::Search(SearchError::CustomApiKeyNotFound(_)) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Internal server error",
+            ),
+
+            SomeError::Database(DBError::DatabaseUrlMissing) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Internal server error",
+            ),
+
+            SomeError::WebHooks(WebHooksError::GithubWebhookSecretMissing) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Internal server error",
+            ),
 
             // Meilisearch 服务本身的问题
-            SomeError::Meilisearch(_) => (StatusCode::BAD_GATEWAY, "Search service unavailable"),
-
-            // 搜索服务配置问题
-            SomeError::Search(
-                SearchError::DefaultSearchApiKeyNotFound
-                | SearchError::DefaultAdminApiKeyNotFound
-                | SearchError::CustomApiKeyNotFound(_),
-            ) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Search service misconfigured",
+            SomeError::Meilisearch(_) => (
+                StatusCode::BAD_GATEWAY,
+                "SERVICE_UNAVAILABLE",
+                "Search service temporarily unavailable",
             ),
 
             // 数据库查询失败
             SomeError::Database(DBError::QueryFailed(_)) => (
                 StatusCode::SERVICE_UNAVAILABLE,
-                "Database temporarily unavailable",
+                "SERVICE_UNAVAILABLE",
+                "Service temporarily unavailable",
             ),
 
-            // 来自客户端的无效请求
-            SomeError::GetPosts(GetPostsError::CategoryError)
-            | SomeError::JsonParseError(_)
-            | SomeError::WebHooks(WebHooksError::MissingHeader(_))
-            | SomeError::WebHooks(WebHooksError::InvalidHeader(_)) => (
+            // 来自客户端的无效请求 (4xx) - 可以提供适度详细的信息
+            SomeError::GetPosts(GetPostsError::CategoryError) => (
                 StatusCode::BAD_REQUEST,
-                "Something was invalid in requests.",
+                "INVALID_CATEGORY",
+                "Invalid category parameter",
             ),
 
-            SomeError::GetPosts(GetPostsError::ArticleNotFound) => (
-                StatusCode::NOT_FOUND,
-                "The article is not found in the database.",
+            SomeError::Parse(ParseError::JsonParseError(_)) => (
+                StatusCode::BAD_REQUEST,
+                "INVALID_REQUEST",
+                "Invalid request format",
             ),
+
+            #[cfg(feature = "webhook")]
+            SomeError::Parse(ParseError::ArticleParseError(_)) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "INVALID_CONTENT",
+                "Invalid content format",
+            ),
+
+            SomeError::WebHooks(WebHooksError::MissingHeader(_)) => (
+                StatusCode::BAD_REQUEST,
+                "MISSING_HEADER",
+                "Missing required header",
+            ),
+
+            SomeError::WebHooks(WebHooksError::InvalidHeader(_)) => (
+                StatusCode::BAD_REQUEST,
+                "INVALID_HEADER",
+                "Invalid header value",
+            ),
+
+            SomeError::WebHooks(WebHooksError::UnsupportedWebhookEvent) => (
+                StatusCode::BAD_REQUEST,
+                "UNSUPPORTED_EVENT",
+                "Unsupported event type",
+            ),
+
+            SomeError::GetPosts(GetPostsError::ArticleNotFound) => {
+                (StatusCode::NOT_FOUND, "NOT_FOUND", "Resource not found")
+            }
 
             SomeError::WebHooks(WebHooksError::VerifySignatureFailed) => {
-                (StatusCode::UNAUTHORIZED, "Unauthorized")
+                (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "Unauthorized")
             }
 
-            SomeError::WebHooks(WebHooksError::MissingRepositoryName) => {
-                (StatusCode::UNPROCESSABLE_ENTITY, "Missing repository name")
-            }
+            SomeError::WebHooks(WebHooksError::MissingRepositoryName) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "INVALID_PAYLOAD",
+                "Invalid webhook payload",
+            ),
+
+            #[cfg(feature = "webhook")]
+            SomeError::Decode(DecodeError::DecodeBase64(_)) => (
+                StatusCode::BAD_REQUEST,
+                "INVALID_ENCODING",
+                "Invalid encoding",
+            ),
+
+            #[cfg(feature = "webhook")]
+            SomeError::Decode(DecodeError::DecodeUtf8(_)) => (
+                StatusCode::BAD_REQUEST,
+                "INVALID_ENCODING",
+                "Invalid encoding",
+            ),
 
             // 所有其他未预料到的内部错误
             SomeError::Other(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred",
+                "INTERNAL_ERROR",
+                "Internal server error",
             ),
         };
 
-        // 构建返回给客户端的 JSON body
+        // 根据状态码决定日志级别
+        // 4xx 错误通常是客户端问题，使用 warn 级别
+        // 5xx 错误是服务器问题，使用 error 级别
+        if status.is_client_error() {
+            tracing::warn!(
+                status = status.as_u16(),
+                error_code = error_code,
+                error = %self,
+                "Client error"
+            );
+        } else if status.is_server_error() {
+            tracing::error!(
+                status = status.as_u16(),
+                error_code = error_code,
+                error = %self,
+                "Server error"
+            );
+        }
+
+        // 构建返回给客户端的 JSON body，包含错误代码以便客户端识别错误类型
         let body = Json(json!({
             "error": user_message,
+            "error_code": error_code,
             "status": "error"
         }));
 

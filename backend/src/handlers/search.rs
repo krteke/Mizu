@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::{
-    common::{AppState, Article, SearchHit},
+    common::{AppState, SearchHit},
     config::Config,
+    handlers::articles::Article,
     some_errors::{Result, SearchError},
 };
 
@@ -293,11 +294,12 @@ mod tests {
     use crate::config::Config;
     use sqlx::PgPool;
     use time::OffsetDateTime;
+    use tokio::sync::RwLock;
 
     // 辅助函数，设置测试环境
     async fn setup_test_app_state_for_search() -> AppState {
         dotenvy::dotenv().ok();
-        let config = Config::from_env().expect("Failed to load config for testing");
+        let config = Config::new().expect("Failed to load config for testing");
         let search_service = SearchService::new(&config, DEFAULT_SEARCH_INDEX)
             .await
             .expect("Failed to create SearchService for testing");
@@ -314,13 +316,16 @@ mod tests {
         let github_webhook_secret =
             std::env::var("GITHUB_WEBHOOK_SECRET").expect("GITHUB_WEBHOOK_SECRET not set");
 
-        let allowed_repositories = HashSet::new();
+        let github_token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
+
+        let allowed_repositories = RwLock::new(HashSet::new());
 
         AppState {
             db_pool,
             jwt_secret: config.jwt_secret.clone(),
             search_service,
             github_webhook_secret,
+            github_token,
             allowed_repositories,
         }
     }

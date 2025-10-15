@@ -1,14 +1,14 @@
+use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 #[cfg(feature = "webhook")]
 use std::collections::HashSet;
+use std::str::FromStr;
+#[cfg(feature = "webhook")]
+use tokio::sync::RwLock;
 
-use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
-use time::OffsetDateTime;
-
-use crate::search::SearchService;
+use crate::handlers::search::SearchService;
 
 // 定义应用的状态结构体 AppState，它将在整个应用中共享
-#[derive(Clone)]
 pub struct AppState {
     // 数据库连接池
     pub db_pool: PgPool,
@@ -19,30 +19,9 @@ pub struct AppState {
     #[cfg(feature = "webhook")]
     pub github_webhook_secret: String,
     #[cfg(feature = "webhook")]
-    pub allowed_repositories: HashSet<String>,
-}
-
-// 定义 Article 结构体，对应数据库中的 `articles` 表
-#[derive(Debug, Deserialize, Serialize, FromRow)]
-pub struct Article {
-    // 文章 ID
-    pub id: String,
-    // 文章标题
-    pub title: String,
-    // 文章标签
-    pub tags: Vec<String>,
-    // 文章分类
-    pub category: PostCategory,
-    // 文章摘要
-    pub summary: String,
-    // 文章内容
-    pub content: String,
-    // 文章状态
-    pub status: String,
-    // 创建时间
-    pub created_at: OffsetDateTime,
-    // 更新时间
-    pub updated_at: OffsetDateTime,
+    pub allowed_repositories: RwLock<HashSet<String>>,
+    #[cfg(feature = "webhook")]
+    pub github_token: String,
 }
 
 // 定义搜索结果的结构体
@@ -72,13 +51,13 @@ pub struct PostResponse {
     pub content: String,
 }
 
-#[cfg(feature = "webhook")]
-#[derive(Deserialize)]
-pub struct WebhookQuery {
-    pub hub_mode: Option<String>,
-    pub hub_challenge: Option<String>,
-    pub hub_verify_token: Option<String>,
-}
+// #[cfg(feature = "webhook")]
+// #[derive(Deserialize)]
+// pub struct WebhookQuery {
+//     pub hub_mode: Option<String>,
+//     pub hub_challenge: Option<String>,
+//     pub hub_verify_token: Option<String>,
+// }
 
 // 定义文章分类的枚举
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
@@ -105,17 +84,20 @@ impl PostCategory {
             PostCategory::Think => "think",
         }
     }
+}
 
-    // 从字符串转换为枚举成员
-    pub fn from_str(s: &str) -> Option<Self> {
+// 实现 FromStr trait
+impl FromStr for PostCategory {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "article" => Some(PostCategory::Article),
-            "note" => Some(PostCategory::Note),
-            "pictures" => Some(PostCategory::Pictures),
-            "talk" => Some(PostCategory::Talk),
-            "think" => Some(PostCategory::Think),
-            // 如果字符串不匹配任何分类，则返回 None
-            _ => None,
+            "article" => Ok(PostCategory::Article),
+            "note" => Ok(PostCategory::Note),
+            "pictures" => Ok(PostCategory::Pictures),
+            "talk" => Ok(PostCategory::Talk),
+            "think" => Ok(PostCategory::Think),
+            _ => Err(format!("Invalid category: {}", s)),
         }
     }
 }
