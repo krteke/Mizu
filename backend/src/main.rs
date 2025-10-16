@@ -1,31 +1,23 @@
+use axum::routing::get;
 use axum::routing::post;
-use axum::routing::{get, put};
 use mimalloc::MiMalloc;
-use sqlx::postgres::PgPoolOptions;
-use std::{net::SocketAddr, sync::Arc, time::Duration};
-#[cfg(feature = "webhook")]
-use tokio::sync::RwLock;
+use std::{net::SocketAddr, sync::Arc};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use crate::handlers::not_found;
-#[cfg(feature = "webhook")]
-use crate::handlers::webhook::github_webhook;
-use crate::{
-    common::AppState,
-    handlers::articles::{get_post_digital, get_posts},
-    handlers::search::{SearchService, get_search_results},
-};
+use crate::app_state::AppState;
+use crate::interfaces::http::handlers::articles::{get_post_digital, get_posts};
+use crate::interfaces::http::handlers::not_found;
+use crate::interfaces::http::handlers::search::get_search_results;
 
 // 声明项目内的模块，以便编译器能够找到它们。
-mod common; // 通用工具或定义模块
+mod app_state;
+mod application;
 mod config; // 配置管理模块
-#[cfg(feature = "webhook")]
-mod github_api;
-#[cfg(feature = "webhook")]
-mod github_webhook;
-mod handlers;
-mod some_errors; // 自定义错误处理模块
+mod domain;
+mod errors; // 自定义错误处理模块
+mod infrastructure;
+mod interfaces;
 
 // 使用 #[global_allocator] 宏将 MiMalloc 设置为全局内存分配器。
 // 这可以提高应用程序的内存分配性能。
@@ -35,8 +27,6 @@ static GLOBAL: MiMalloc = MiMalloc;
 // 定义一些常量，用于设置服务器的默认值。
 const DEFAULT_PORT: u16 = 8124; // 默认端口号
 const DEFAULT_HOST: &str = "0.0.0.0"; // 默认主机地址，监听所有网络接口
-const DEFAULT_INDEX_NAME: &str = "articles"; // 默认的搜索索引名称
-const DEFAULT_MAX_CONNECTIONS: u32 = 50; // 默认的最大连接数
 // const DEFAULT_MAX_CONNECTIONS_PER_IP: u32 = 100; // 默认的每个 IP 的最大连接数
 
 // 使用 #[tokio::main] 宏来标记异步主函数，tokio 运行时会自动处理。
@@ -65,41 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 打印监听地址，方便开发者查看。
     println!("正在监听 http://{}", address);
 
-    // 克隆 JWT 密钥，用于后续的应用状态共享。
-    let jwt_secret = config.jwt_secret.clone();
-    // 异步初始化搜索服务。
-    let search_service = SearchService::new(&config, DEFAULT_INDEX_NAME).await?;
-    tracing::info!("Search service initialized successfully.");
-
-    // 设置数据库连接池选项。
-    let pool = PgPoolOptions::new()
-        .max_connections(DEFAULT_MAX_CONNECTIONS)
-        .acquire_timeout(Duration::from_secs(3)) // 获取连接的超时时间为 3 秒
-        .connect(&config.database_url) // 连接到数据库
-        .await // 等待连接完成
-        .expect("无法连接到数据库。");
-
-    #[cfg(feature = "webhook")]
-    let github_webhook_secret = config.github_webhook_secret;
-
-    #[cfg(feature = "webhook")]
-    let allowed_repositories = RwLock::new(config.allowed_repositories);
-
-    #[cfg(feature = "webhook")]
-    let github_token = config.github_token;
-
-    // 创建应用共享状态 AppState 的实例。
-    let state = AppState {
-        db_pool: pool,                  // 数据库连接池
-        jwt_secret: jwt_secret,         // JWT 密钥
-        search_service: search_service, // 搜索服务
-        #[cfg(feature = "webhook")]
-        github_webhook_secret,
-        #[cfg(feature = "webhook")]
-        allowed_repositories,
-        #[cfg(feature = "webhook")]
-        github_token,
-    };
+    let state = AppState::new(config).await?;
 
     // 使用 Arc (原子引用计数) 将 AppState 包装起来，使其可以在多个线程之间安全地共享。
     let state = Arc::new(state);
@@ -118,6 +74,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "webhook")]
     {
+        use crate::interfaces::http::handlers::webhook::github_webhook;
+
         api_router = api_router.route("/webhook/github", post(github_webhook));
     }
 

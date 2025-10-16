@@ -1,6 +1,7 @@
+use async_trait::async_trait;
 use base64::{Engine, prelude::BASE64_STANDARD};
 
-use crate::some_errors::Result;
+use crate::{errors::Result, infrastructure::github::client::GithubClient};
 
 pub struct GithubApiClient {
     client: octocrab::Octocrab,
@@ -14,8 +15,11 @@ impl GithubApiClient {
 
         Ok(GithubApiClient { client })
     }
+}
 
-    pub async fn get_file_content(&self, owner: &str, repo: &str, path: &str) -> Result<String> {
+#[async_trait]
+impl GithubClient for GithubApiClient {
+    async fn get_file_content(&self, owner: &str, repo: &str, path: &str) -> Result<String> {
         let response = self
             .client
             .repos(owner, repo)

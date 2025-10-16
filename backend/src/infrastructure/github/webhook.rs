@@ -3,11 +3,11 @@ use octocrab::models::webhook_events::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::some_errors::{Result, WebHooksError};
+use crate::errors::{Result, WebHooksError};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileChange {
-    pub filename: String,
+    pub file_path: String,
     pub status: String,
     pub row_url: Option<String>,
 }
@@ -48,9 +48,9 @@ pub trait WebhookHandler {
     fn get_repository_owner(&self) -> Result<String>;
 }
 
-pub fn parse_webhook_event(payload: &serde_json::Value) -> Result<PushEvent> {
-    Ok(serde_json::from_value(payload.clone())?)
-}
+// pub fn parse_webhook_event(payload: &serde_json::Value) -> Result<PushEvent> {
+//     Ok(serde_json::from_value(payload.clone())?)
+// }
 
 impl WebhookHandler for WebhookEvent {
     fn get_push_file_changes(&self) -> Vec<FileChange> {
@@ -61,7 +61,7 @@ impl WebhookHandler for WebhookEvent {
                 for commit in &push_payload.commits {
                     for file in &commit.added {
                         changes.push(FileChange {
-                            filename: file.clone(),
+                            file_path: file.clone(),
                             status: "added".to_string(),
                             row_url: None,
                         });
@@ -69,7 +69,7 @@ impl WebhookHandler for WebhookEvent {
 
                     for file in &commit.removed {
                         changes.push(FileChange {
-                            filename: file.clone(),
+                            file_path: file.clone(),
                             status: "removed".to_string(),
                             row_url: None,
                         });
@@ -77,7 +77,7 @@ impl WebhookHandler for WebhookEvent {
 
                     for file in &commit.modified {
                         changes.push(FileChange {
-                            filename: file.clone(),
+                            file_path: file.clone(),
                             status: "modified".to_string(),
                             row_url: None,
                         });
