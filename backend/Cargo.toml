@@ -34,10 +34,11 @@ sqlx = { version = "0.8.6", features = [
 ] }
 thiserror = "2.0.17"
 time = { version = "0.3.44", features = ["serde"] }
-tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros", "sync"] }
+tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "sync"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20" }
 config = { version = "0.15.18", features = ["toml"] }
+async-trait = { version = "0.1.89" }
 git2 = { version = "0.20.2", optional = true }
 ring = { version = "0.17.14", optional = true }
 hex = { version = "0.4.3", optional = true }
