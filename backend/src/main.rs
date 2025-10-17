@@ -1,81 +1,103 @@
-use axum::routing::get;
-use axum::routing::post;
 use mimalloc::MiMalloc;
 use std::{net::SocketAddr, sync::Arc};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
 use crate::app_state::AppState;
-use crate::interfaces::http::handlers::articles::{get_post_digital, get_posts};
-use crate::interfaces::http::handlers::not_found;
-use crate::interfaces::http::handlers::search::get_search_results;
 use crate::interfaces::http::route::router;
 
-// 声明项目内的模块，以便编译器能够找到它们。
+// Module declarations
+// These tell the Rust compiler where to find the module definitions
 mod app_state;
 mod application;
-mod config; // 配置管理模块
+mod config; // Configuration management module
 mod domain;
-mod errors; // 自定义错误处理模块
+mod errors; // Custom error handling module
 mod infrastructure;
 mod interfaces;
 
-// 使用 #[global_allocator] 宏将 MiMalloc 设置为全局内存分配器。
-// 这可以提高应用程序的内存分配性能。
+// Global memory allocator using MiMalloc
+// MiMalloc is a high-performance memory allocator that can significantly
+// improve allocation performance compared to the system's default allocator
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-// 定义一些常量，用于设置服务器的默认值。
-const DEFAULT_PORT: u16 = 8124; // 默认端口号
-const DEFAULT_HOST: &str = "0.0.0.0"; // 默认主机地址，监听所有网络接口
-// const DEFAULT_MAX_CONNECTIONS_PER_IP: u32 = 100; // 默认的每个 IP 的最大连接数
+// Server default configuration constants
+const DEFAULT_PORT: u16 = 8124; // Default server port
+const DEFAULT_HOST: &str = "0.0.0.0"; // Default host address (listens on all network interfaces)
+// const DEFAULT_MAX_CONNECTIONS_PER_IP: u32 = 100;  // Maximum connections per IP (reserved for future use)
 
-// 使用 #[tokio::main] 宏来标记异步主函数，tokio 运行时会自动处理。
+/// Main application entry point
+///
+/// This function initializes the server, sets up the application state,
+/// and starts listening for incoming HTTP connections.
+///
+/// The `#[tokio::main]` macro sets up the async runtime automatically
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 从 .env 文件中加载环境变量。如果文件不存在，.ok() 会忽略错误。
+    // Load environment variables from .env file
+    // Using .ok() to ignore errors if the file doesn't exist
     dotenvy::dotenv().ok();
+
+    // Initialize the tracing subscriber for logging
     create_tracing_subscriber();
-    // 从环境变量中加载配置。如果失败，程序会 panic 并显示错误信息。
-    let config = config::Config::new().expect("无法加载配置。请检查您的环境变量。");
 
-    // 获取主机地址，如果环境变量中未设置，则使用默认值。
+    // Load configuration from environment variables
+    // The application will panic with an error message if configuration loading fails
+    let config = config::Config::new()
+        .expect("Failed to load configuration. Please check your environment variables.");
+
+    // Extract host address from config, falling back to default if not set
     let host = config.host.as_deref().unwrap_or(DEFAULT_HOST);
-    // 获取端口号，如果环境变量中未设置，则使用默认值。
-    let port = config.port.unwrap_or(DEFAULT_PORT);
-    // 格式化主机和端口为 "host:port" 形式的字符串。
-    let addr = format!("{}:{}", host, port);
-    // 将字符串解析为 SocketAddr 类型。如果格式无效，程序会 panic。
-    let address: SocketAddr = addr.parse().expect("无效的 HOST:PORT 格式");
 
-    // 绑定 TCP 监听器到指定的地址。
+    // Extract port from config, falling back to default if not set
+    let port = config.port.unwrap_or(DEFAULT_PORT);
+
+    // Format the address as "host:port" string
+    let addr = format!("{}:{}", host, port);
+
+    // Parse the string into a SocketAddr
+    // Will panic if the format is invalid
+    let address: SocketAddr = addr.parse().expect("Invalid HOST:PORT format");
+
+    // Bind a TCP listener to the specified address
+    // This will fail if the port is already in use
     let listener = tokio::net::TcpListener::bind(address)
         .await
-        .expect("无法绑定到地址。端口可能已被占用。");
+        .expect("Failed to bind to address. The port might already be in use.");
 
-    // 打印监听地址，方便开发者查看。
-    println!("正在监听 http://{}", address);
+    // Print the listening address for developer convenience
+    println!("Listening on http://{}", address);
 
+    // Initialize application state with database, search service, etc.
     let state = AppState::new(config).await?;
 
-    // 使用 Arc (原子引用计数) 将 AppState 包装起来，使其可以在多个线程之间安全地共享。
+    // Wrap the state in Arc (Atomic Reference Counting) for safe sharing across threads
+    // This allows multiple handlers to access the state concurrently
     let state = Arc::new(state);
 
+    // Spawn a background task to watch config file changes (webhook feature only)
     #[cfg(feature = "webhook")]
     tokio::spawn(watch_config_file(state.clone()));
 
+    // Create the router with all routes configured
     let router = router().with_state(state);
 
-    // 启动 axum 服务器，监听传入的连接。
+    // Start the axum server and begin accepting connections
     if let Err(e) = axum::serve(listener, router).await {
-        // 如果服务器启动失败，则 panic 并打印错误信息。
-        panic!("服务器因错误退出: {}", e);
+        panic!("Server exited with error: {}", e);
     }
 
-    // 如果 main 函数成功完成，返回 Ok(())。
     Ok(())
 }
 
+/// Watch for configuration file changes and reload allowed repositories
+///
+/// This function runs in a background task and monitors the config.toml file
+/// for any modifications. When changes are detected, it reloads the configuration
+/// and updates the allowed repositories list.
+///
+/// This feature is only available when the "webhook" feature flag is enabled.
 #[cfg(feature = "webhook")]
 async fn watch_config_file(state: Arc<AppState>) {
     use std::path::Path;
@@ -83,10 +105,13 @@ async fn watch_config_file(state: Arc<AppState>) {
     use notify::{Config as NotifyConfig, RecommendedWatcher, Watcher};
     use tokio::sync::mpsc;
 
+    // Create a channel for receiving file system events
     let (tx, mut rx) = mpsc::channel(1);
 
+    // Create a file system watcher
     let mut watcher: RecommendedWatcher = match Watcher::new(
         move |res| {
+            // Send file change events through the channel
             if let Err(e) = tx.blocking_send(res) {
                 tracing::error!("Failed to send file change event to channel: {}", e);
             }
@@ -100,8 +125,10 @@ async fn watch_config_file(state: Arc<AppState>) {
         }
     };
 
+    // Path to the configuration file
     let file_path = Path::new("config.toml");
 
+    // Start watching the config file (non-recursive)
     if let Err(e) = watcher.watch(file_path, notify::RecursiveMode::NonRecursive) {
         tracing::error!(
             "Failed to watch config file at '{}': {}",
@@ -116,16 +143,20 @@ async fn watch_config_file(state: Arc<AppState>) {
         file_path.display()
     );
 
+    // Event processing loop
     while let Some(res) = rx.recv().await {
         match res {
             Ok(event) => {
+                // Check if the event is a modification or creation
                 if event.kind.is_modify() || event.kind.is_create() {
                     use crate::config::Config;
 
                     tracing::info!("Config file change detected, attempting to reload...");
 
+                    // Attempt to reload the configuration
                     match Config::new() {
                         Ok(new_config) => {
+                            // Update the allowed repositories in the application state
                             let mut config_writer =
                                 state.app_config.allowed_repositories.write().await;
                             *config_writer = new_config.allowed_repositories;
@@ -146,22 +177,32 @@ async fn watch_config_file(state: Arc<AppState>) {
     }
 }
 
+/// Create and configure the tracing subscriber for application logging
+///
+/// This function initializes the logging system with a log level read from
+/// the RUST_LOG environment variable. If not set, defaults to INFO level.
+///
+/// Supported log levels: trace, debug, info, warn, error
 fn create_tracing_subscriber() {
-    // 从环境变量读取日志级别，默认为 INFO
+    // Read log level from environment variable, defaulting to "info"
     let log_level = std::env::var("RUST_LOG")
         .unwrap_or_else(|_| "info".to_string())
         .to_lowercase();
 
+    // Map the string log level to the tracing Level enum
     let level = match log_level.as_str() {
         "trace" => Level::TRACE,
         "debug" => Level::DEBUG,
         "info" => Level::INFO,
         "warn" => Level::WARN,
         "error" => Level::ERROR,
-        _ => Level::INFO,
+        _ => Level::INFO, // Default to INFO for invalid values
     };
 
+    // Build the subscriber with the configured log level
     let subscriber = FmtSubscriber::builder().with_max_level(level).finish();
 
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    // Set as the global default subscriber
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to set default tracing subscriber");
 }

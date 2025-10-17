@@ -2,122 +2,175 @@ use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde_json::json;
 use thiserror::Error;
 
-// --- SearchError ---
-// 定义与搜索服务相关的错误
+/// Errors related to search service operations
+///
+/// These errors occur when interacting with the Meilisearch service,
+/// including configuration issues and missing API keys.
 #[derive(Debug, Error)]
 pub enum SearchError {
-    // Meilisearch URL 未在环境变量中设置
+    /// Meilisearch URL is not set in environment variables
     #[error("Can not get MEILISEARCH_URL from env.")]
     MeilisearchUrlMissing,
-    // Meilisearch 主密钥未在环境变量中设置
+
+    /// Meilisearch master key is not set in environment variables
     #[error("Can not get MEILI_MASTER_KEY from env.")]
     MasterKeyMissing,
-    // 找不到默认的搜索 API 密钥
+
+    /// Default search API key was not found in Meilisearch
     #[error("Can not found default search api key.")]
     DefaultSearchApiKeyNotFound,
-    // 找不到默认的管理员 API 密钥
+
+    /// Default admin API key was not found in Meilisearch
     #[error("Can not found default admin api key.")]
     DefaultAdminApiKeyNotFound,
-    // 找不到指定名称的 API 密钥
+
+    /// Custom API key with the specified name was not found
     #[error("Can not found this key, it is {0}, is it valid?")]
     CustomApiKeyNotFound(String),
 }
 
-// --- DBError ---
-// 定义与数据库操作相关的错误
+/// Errors related to database operations
+///
+/// These errors occur during database interactions, including connection
+/// failures and query execution errors.
 #[derive(Debug, Error)]
 pub enum DBError {
-    // 数据库 URL 未在环境变量中设置
+    /// Database URL is not set in environment variables
     #[error("Can not get DATABASE_URL from env.")]
     DatabaseUrlMissing,
-    // 数据库查询失败，包装了来自 sqlx 的原始错误
+
+    /// Database query failed, wrapping the original sqlx error
     #[error("Database query failed: {0}")]
     QueryFailed(#[from] sqlx::Error),
 }
 
-// --- GetPostsError ---
-// 定义获取文章列表时的特定错误
+/// Errors specific to article retrieval operations
+///
+/// These errors occur when fetching or querying articles from the database.
 #[derive(Debug, Error)]
 pub enum GetPostsError {
-    // 无效的文章分类
+    /// Invalid article category was provided
     #[error("Invalid Category type.")]
     CategoryError,
-    // 文章未找到
+
+    /// Requested article was not found in the database
     #[error("Article not found")]
     ArticleNotFound,
 }
 
-// --- WebHooksError ---
-// 定义与 Webhook 相关的错误
+/// Errors related to GitHub webhook operations
+///
+/// These errors occur when processing incoming webhooks from GitHub,
+/// including signature verification and payload parsing issues.
 #[derive(Debug, Error)]
 pub enum WebHooksError {
-    // Webhook 验证失败
+    /// GitHub webhook signature verification failed
     #[error("Github webhook verification failed")]
     VerifySignatureFailed,
+
+    /// HTTP header contains invalid value
     #[error("Invalid {0} header")]
     InvalidHeader(String),
+
+    /// Required HTTP header is missing
     #[error("Missing {0} header")]
     MissingHeader(String),
+
+    /// Could not extract repository name from webhook payload
     #[error("Could not extract repository name from webhook event")]
     MissingRepositoryName,
+
+    /// GitHub webhook secret is not set in environment variables
     #[error("Can not get GITHUB_WEBHOOK_SECRET from environment")]
     GithubWebhookSecretMissing,
+
+    /// Webhook event type is not supported by this application
     #[error("Unsupported webhook event")]
     UnsupportedWebhookEvent,
 }
 
+/// Errors related to decoding operations (webhook feature only)
+///
+/// These errors occur when decoding base64 content or UTF-8 strings,
+/// typically when processing file content from GitHub API responses.
 #[cfg(feature = "webhook")]
 #[derive(Debug, Error)]
 pub enum DecodeError {
+    /// Base64 decoding failed
     #[error(transparent)]
     DecodeBase64(#[from] base64::DecodeError),
+
+    /// UTF-8 string decoding failed
     #[error(transparent)]
     DecodeUtf8(#[from] std::string::FromUtf8Error),
 }
 
+/// Errors related to parsing operations
+///
+/// These errors occur when parsing JSON data or article front matter
+/// from markdown files.
 #[derive(Debug, Error)]
 pub enum ParseError {
+    /// JSON parsing failed
     #[error(transparent)]
     JsonParseError(#[from] serde_json::Error),
+
+    /// Article front matter parsing failed (webhook feature only)
     #[cfg(feature = "webhook")]
     #[error(transparent)]
     ArticleParseError(#[from] gray_matter::Error),
 }
 
-// --- SomeError ---
-// 定义一个顶层的、统一的错误枚举，它包含了项目中所有可能的业务错误。
-// 使用 #[error(transparent)] 可以让错误信息直接显示来源错误的信息，而不是 "SomeError::Variant(source_error)"。
+/// Top-level unified error enum containing all possible application errors
+///
+/// This enum aggregates all specific error types into a single error type
+/// that can be returned from any application function. Using `#[error(transparent)]`
+/// allows the original error message to be displayed directly instead of
+/// showing "SomeError::Variant(source_error)".
+///
+/// This follows the error handling pattern where domain-specific errors are
+/// wrapped into a single application error type for easier propagation and handling.
 #[derive(Debug, Error)]
 pub enum SomeError {
-    // 包装 SearchError
+    /// Search service related errors
     #[error(transparent)]
     Search(#[from] SearchError),
-    // 包装 DBError
+
+    /// Database operation errors
     #[error(transparent)]
     Database(#[from] DBError),
-    // 包装来自 meilisearch_sdk 的错误
+
+    /// Errors from the Meilisearch SDK
     #[error(transparent)]
     Meilisearch(#[from] meilisearch_sdk::errors::Error),
-    // 包装 GetPostsError
+    /// Article retrieval errors
     #[error(transparent)]
     GetPosts(#[from] GetPostsError),
-    // 包装 WebHooksError
+
+    /// GitHub webhook processing errors
     #[error(transparent)]
     WebHooks(#[from] WebHooksError),
+
+    /// Parsing errors (JSON, YAML, etc.)
     #[error(transparent)]
     Parse(#[from] ParseError),
+
+    /// Decoding errors (base64, UTF-8)
     #[cfg(feature = "webhook")]
     #[error(transparent)]
     Decode(#[from] DecodeError),
-    // 包装来自 anyhow 的通用错误，用于处理其他未明确分类的错误
+
+    /// Generic errors from anyhow for cases not covered by specific error types
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
 
-// 为 SomeError 实现 From<sqlx::Error> trait。
-// 这样，当 sqlx::Error 出现时（例如使用 `?` 操作符），
-// 它可以被自动转换为 SomeError::Database(DBError::QueryFailed(err))。
-// 这比 thiserror 自动生成的 `#[from]` 更具体，避免了歧义。
+/// Implement From<sqlx::Error> for SomeError to provide specific conversion
+///
+/// This implementation ensures that sqlx::Error is automatically converted to
+/// SomeError::Database(DBError::QueryFailed(err)) when using the `?` operator.
+/// This is more specific than the automatic conversion from thiserror's `#[from]`
+/// attribute and avoids ambiguity in error handling.
 impl From<sqlx::Error> for SomeError {
     fn from(err: sqlx::Error) -> Self {
         SomeError::Database(DBError::QueryFailed(err))
@@ -179,17 +232,23 @@ impl From<gray_matter::Error> for SomeError {
     }
 }
 
-// 为 SomeError 实现 axum 的 IntoResponse trait。
-// 这是将自定义错误类型与 axum Web 框架集成的关键。
-// 当处理器函数返回 Result<_, SomeError> 并且是 Err 时，axum 会调用这个方法
-// 将我们的自定义错误转换为一个标准的 HTTP 响应。
+/// Implement axum's IntoResponse trait for SomeError
+///
+/// This is the key integration point between our custom error type and the
+/// axum web framework. When a handler function returns Result<_, SomeError>
+/// and the result is Err, axum calls this method to convert the error into
+/// a standard HTTP response.
+///
+/// The implementation maps each error variant to an appropriate HTTP status code
+/// and user-friendly error message, ensuring that sensitive internal details
+/// are not leaked to clients. For 5xx errors (server issues), only generic
+/// messages are returned while details are logged.
 impl IntoResponse for SomeError {
     fn into_response(self) -> axum::response::Response {
-        // 根据具体的错误变体，匹配出对应的 HTTP 状态码、错误代码和返回给用户的友好错误信息。
-        // 这样做可以避免向客户端泄露敏感的内部实现细节。
-        // 对于 5xx 错误（服务器内部问题），只返回通用消息，详细信息仅记录在日志中。
+        // Match the error variant to determine HTTP status code, error code, and user message
+        // This prevents leaking sensitive implementation details to clients
         let (status, error_code, user_message): (StatusCode, &str, &str) = match &self {
-            // 服务器配置错误 (5xx) - 不暴露具体配置细节
+            // Server configuration errors (5xx) - don't expose specific configuration details
             SomeError::Search(SearchError::MeilisearchUrlMissing)
             | SomeError::Search(SearchError::MasterKeyMissing)
             | SomeError::Search(SearchError::DefaultSearchApiKeyNotFound)
@@ -300,9 +359,9 @@ impl IntoResponse for SomeError {
             ),
         };
 
-        // 根据状态码决定日志级别
-        // 4xx 错误通常是客户端问题，使用 warn 级别
-        // 5xx 错误是服务器问题，使用 error 级别
+        // Choose log level based on status code
+        // 4xx errors are typically client issues, log at warn level
+        // 5xx errors are server issues, log at error level
         if status.is_client_error() {
             tracing::warn!(
                 status = status.as_u16(),
@@ -319,19 +378,31 @@ impl IntoResponse for SomeError {
             );
         }
 
-        // 构建返回给客户端的 JSON body，包含错误代码以便客户端识别错误类型
+        // Construct JSON response body with error code for client-side error identification
         let body = Json(json!({
             "error": user_message,
             "error_code": error_code,
             "status": "error"
         }));
 
-        // 将状态码和 JSON body 组合成一个完整的 HTTP 响应
+        // Combine status code and JSON body into a complete HTTP response
         (status, body).into_response()
     }
 }
 
-// 定义一个全局的 Result 类型别名。
-// 在整个项目中，我们可以使用 `Result<T>` 来代替 `std::result::Result<T, SomeError>`，
-// 这样可以使代码更简洁。
+/// Global Result type alias for the application
+///
+/// This type alias allows using `Result<T>` throughout the project instead of
+/// the more verbose `std::result::Result<T, SomeError>`, making the code cleaner
+/// and more consistent.
+///
+/// # Example
+///
+/// ```rust
+/// use backend::errors::Result;
+///
+/// fn some_function() -> Result<String> {
+///     Ok("success".to_string())
+/// }
+/// ```
 pub type Result<T> = std::result::Result<T, SomeError>;
