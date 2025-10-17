@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use meilisearch_sdk::{
     client::Client,
     key::Key,
@@ -6,7 +7,10 @@ use meilisearch_sdk::{
 
 use crate::{
     config::Config,
-    domain::articles::Article,
+    domain::{
+        articles::Article,
+        search::{SearchHit, SearchService},
+    },
     errors::{Result, SearchError},
 };
 
@@ -19,13 +23,13 @@ pub enum ClientType {
 
 // 定义搜索服务结构体，封装了与 Meilisearch 交互的逻辑
 #[derive(Clone)]
-pub struct SearchService {
+pub struct MeiliSearchService {
     pub admin_client: Client,  // 具有管理权限的 Meilisearch 客户端
     pub search_client: Client, // 仅具有搜索权限的 Meilisearch 客户端
     pub index_name: String,    // 索引的名称
 }
 
-impl SearchService {
+impl MeiliSearchService {
     // SearchService 的构造函数，用于创建一个新的实例
     pub async fn new(config: &Config, index_name: &str) -> Result<Self> {
         // 获取 Meilisearch 服务的 URL
@@ -128,7 +132,7 @@ enum StandardApiKey {
 
 // 异步函数，用于获取所有的 API Key
 async fn get_api_keys(config: &Config) -> Result<Vec<Key>> {
-    let client = SearchService::create_master_client(config)?;
+    let client = MeiliSearchService::create_master_client(config)?;
     Ok(client.get_keys().await?.results)
 }
 
@@ -166,4 +170,91 @@ async fn get_custom_key(client: &Client, key_name: &str) -> Result<String> {
 
     // 如果找不到，则返回错误
     Err(SearchError::CustomApiKeyNotFound(key_name.to_string()).into())
+}
+
+#[async_trait]
+impl SearchService for MeiliSearchService {
+    async fn search(
+        &self,
+        query: &str,
+        index: &str,
+        current_page: usize,
+        limit: usize,
+    ) -> Result<(Vec<SearchHit>, usize, usize, usize)> {
+        let index = &self.search_client.index(index);
+
+        let current_page = current_page.max(1);
+        let offset = (current_page - 1) * limit;
+
+        let search_result = index
+            .search()
+            .with_query(query)
+            .with_offset(offset)
+            .with_limit(limit)
+            .with_attributes_to_highlight(Selectors::Some(&["title", "summary", "content"])) // 设置高亮的字段
+            .with_highlight_pre_tag("<span class=\"highlight\">") // 设置高亮前缀标签
+            .with_highlight_post_tag("</span>") // 设置高亮后缀标签
+            .with_attributes_to_crop(Selectors::Some(&[("summary", None), ("content", None)])) // 设置要裁剪的字段
+            .execute::<Article>() // 执行搜索
+            .await?;
+
+        // 计算总命中数和总页数
+        let total_hits = search_result.total_hits.unwrap_or(0);
+        let total_pages = (total_hits + limit - 1) / limit;
+
+        let results: Vec<SearchHit> = search_result
+            .hits
+            .into_iter()
+            .map(|r| {
+                // 创建一个默认的 SearchHit
+                let mut hit_result = SearchHit {
+                    id: r.result.id.clone(),
+                    category: r.result.category.clone(),
+                    title: r.result.title.clone(),
+                    summary: String::new(),
+                    content: String::new(),
+                };
+
+                // 如果有格式化（高亮和裁剪）的结果，则使用它们
+                if let Some(formatted) = &r.formatted_result {
+                    hit_result.summary = formatted
+                        .get("summary")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    hit_result.content = formatted
+                        .get("content")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                }
+
+                hit_result
+            })
+            .collect();
+
+        Ok((results, total_hits, total_pages, current_page))
+    }
+
+    async fn create_index_client(
+        &self,
+        index: &str,
+        searchable_attributes: &[&str],
+    ) -> Result<&Client> {
+        let client = &self.admin_client;
+
+        client
+            .create_index(index, Some("id"))
+            .await?
+            .wait_for_completion(&client, None, None)
+            .await?;
+
+        client
+            .index(index)
+            .set_filterable_attributes(searchable_attributes)
+            .await?;
+
+        Ok(client)
+    }
 }

@@ -9,6 +9,7 @@ use crate::app_state::AppState;
 use crate::interfaces::http::handlers::articles::{get_post_digital, get_posts};
 use crate::interfaces::http::handlers::not_found;
 use crate::interfaces::http::handlers::search::get_search_results;
+use crate::interfaces::http::route::router;
 
 // 声明项目内的模块，以便编译器能够找到它们。
 mod app_state;
@@ -63,28 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "webhook")]
     tokio::spawn(watch_config_file(state.clone()));
 
-    // 创建一个 API 路由器，并定义路由。
-    let mut api_router = axum::Router::new()
-        // 当收到对 "/search" 的 GET 请求时，调用 get_search_results 函数处理。
-        .route("/search", get(get_search_results))
-        // 当收到对 "/posts" 的 GET 请求时，调用 get_posts 函数处理。
-        .route("/posts", get(get_posts))
-        // 当收到对 "/posts/{category}/{id}" 的 GET 请求时，调用 get_post_digital 函数处理。
-        .route("/posts/{category}/{id}", get(get_post_digital));
-
-    #[cfg(feature = "webhook")]
-    {
-        use crate::interfaces::http::handlers::webhook::github_webhook;
-
-        api_router = api_router.route("/webhook/github", post(github_webhook));
-    }
-
-    // 创建主路由器，并将 API 路由器嵌套在 "/api" 路径下。
-    let router = axum::Router::new()
-        .nest("/api", api_router)
-        // 将共享的应用状态 state 注入到路由器中，这样所有处理器都可以访问它。
-        .with_state(state)
-        .fallback(not_found::handle_404);
+    let router = router().with_state(state);
 
     // 启动 axum 服务器，监听传入的连接。
     if let Err(e) = axum::serve(listener, router).await {
@@ -146,7 +126,8 @@ async fn watch_config_file(state: Arc<AppState>) {
 
                     match Config::new() {
                         Ok(new_config) => {
-                            let mut config_writer = state.allowed_repositories.write().await;
+                            let mut config_writer =
+                                state.app_config.allowed_repositories.write().await;
                             *config_writer = new_config.allowed_repositories;
 
                             tracing::info!("Config file reloaded successfully");

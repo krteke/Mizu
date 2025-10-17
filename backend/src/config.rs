@@ -57,43 +57,20 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn new() -> Self {
+    pub fn new(
+        jwt_secret: &str,
+        #[cfg(feature = "webhook")] github_webhook_secret: &str,
+        #[cfg(feature = "webhook")] github_token: &str,
+        #[cfg(feature = "webhook")] allowed_repositories: HashSet<String>,
+    ) -> Self {
         Self {
-            jwt_secret: String::new(),
-            github_webhook_secret: String::new(),
-            github_token: String::new(),
-            allowed_repositories: RwLock::new(HashSet::new()),
-        }
-    }
-
-    pub fn jwt_secret(mut self, secret: &str) -> Self {
-        self.jwt_secret = secret.to_string();
-        self
-    }
-
-    pub fn github_webhook_secret(mut self, secret: &str) -> Self {
-        self.github_webhook_secret = secret.to_string();
-        self
-    }
-
-    pub fn github_token(mut self, token: &str) -> Self {
-        self.github_token = token.to_string();
-        self
-    }
-
-    pub async fn allowed_repositories(self, repositories: HashSet<String>) -> Self {
-        *self.allowed_repositories.write().await = repositories;
-        self
-    }
-
-    pub async fn build(self) -> Result<Self> {
-        if !self.jwt_secret.trim().is_empty()
-            && !self.github_token.trim().is_empty()
-            && !self.github_webhook_secret.trim().is_empty()
-        {
-            Ok(self)
-        } else {
-            Err(anyhow::anyhow!("Missing required configuration").into())
+            jwt_secret: jwt_secret.to_string(),
+            #[cfg(feature = "webhook")]
+            github_webhook_secret: github_webhook_secret.to_string(),
+            #[cfg(feature = "webhook")]
+            github_token: github_token.to_string(),
+            #[cfg(feature = "webhook")]
+            allowed_repositories: RwLock::new(allowed_repositories),
         }
     }
 }

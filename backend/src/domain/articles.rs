@@ -26,6 +26,7 @@ pub struct Article {
     pub updated_at: OffsetDateTime,
 }
 
+#[cfg(feature = "webhook")]
 #[derive(Debug, Deserialize)]
 pub struct ArticleFrontMatter {
     pub id: String,

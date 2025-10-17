@@ -11,7 +11,7 @@ pub struct PostResponse {
     // 文章标签
     pub tags: Vec<String>,
     // 文章内容
-    pub content: String,
+    pub summary: String,
 }
 
 // 定义搜索响应的结构体，将被序列化为 JSON

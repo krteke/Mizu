@@ -29,9 +29,6 @@ pub async fn get_posts(
     Query(params): Query<PostParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<PostResponse>>> {
-    // 从共享状态中获取数据库连接池
-    let pool = &state.db_pool;
-
     // 确保页码至少为 1
     let page = params.page.max(1);
     // 限制每页数量，不超过最大值
@@ -39,42 +36,22 @@ pub async fn get_posts(
     // 计算 SQL OFFSET
     let offset = (page - 1) * page_size;
 
-    // 使用 sqlx 的 `query_as!` 宏来执行数据库查询，添加分页支持
-    let query_results = sqlx::query_as!(
-        PostResponse,
-        // SQL 查询语句：从 `articles` 表中选择需要的列，并添加分页
-        "SELECT id, title, tags, content
-         FROM articles
-         WHERE category = $1
-         ORDER BY created_at DESC
-         LIMIT $2 OFFSET $3",
-        params.category.as_str(),
-        page_size,
-        offset
-    )
-    .fetch_all(pool)
-    .await?;
+    let category = params.category.as_str();
+
+    let query_results = state
+        .article_service
+        .get_posts_by_category(category, page_size, offset)
+        .await?;
 
     // 如果查询成功，将结果 `query_results` 包装在 `Json` 中，然后包装在 `Ok` 中返回
     Ok(Json(query_results))
 }
 
 pub async fn get_post_digital(
-    Path((category, id)): Path<(String, String)>,
+    Path((_category, id)): Path<(String, String)>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Article>> {
-    let pool = &state.db_pool;
-    let category = category
-        .parse::<PostCategory>()
-        .map_err(|_| GetPostsError::CategoryError)?;
-
-    let result =
-        sqlx::query_as::<_, Article>("SELECT * FROM articles WHERE category = $1 AND id = $2")
-            .bind(&category)
-            .bind(&id)
-            .fetch_optional(pool)
-            .await?
-            .ok_or(GetPostsError::ArticleNotFound)?;
+    let result = state.article_service.get_article_by_id(&id).await?;
 
     Ok(Json(result))
 }
