@@ -15,6 +15,8 @@ webhook = [
     "dep:notify",
     "dep:base64",
     "dep:gray_matter",
+    "dep:chrono",
+    "dep:futures",
 ]
 
 [dependencies]
@@ -48,6 +50,8 @@ octocrab = { version = "0.47.0", optional = true }
 notify = { version = "8.2.0", optional = true }
 base64 = { version = "0.22.1", optional = true }
 gray_matter = { version = "0.3.2", optional = true }
+chrono = { version = "0.4.42", optional = true }
+futures = { version = "0.3.31", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"

@@ -97,6 +97,8 @@ pub trait ArticleRepository: Send + Sync {
     /// ```
     async fn save(&self, article: &Article) -> Result<()>;
 
+    async fn update_by_path(&self, article: &[Article]) -> Result<()>;
+
     /// Delete an article by its file path
     ///
     /// This method removes an article from the database using its file path
@@ -201,4 +203,15 @@ pub trait ArticleRepository: Send + Sync {
     async fn get_all(&self) -> Result<Vec<Article>>;
 
     async fn find_optional_by_file_path(&self, path: &str) -> Result<Option<Article>>;
+
+    /// Retrieve metadata for all articles
+    ///
+    /// This method fetches id and path for all articles.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<(String, String)>)` - Id and path of all articles
+    /// * `Err(SomeError)` - An error occurred during the query
+    ///
+    async fn get_all_metadata(&self) -> Result<Vec<(String, String)>>;
 }

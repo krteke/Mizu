@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 #[cfg(feature = "webhook")]
-use gray_matter::{Matter, ParsedEntity, engine::YAML};
+use gray_matter::{Matter, engine::YAML};
 #[cfg(feature = "webhook")]
 use octocrab::models::webhook_events::{WebhookEvent, WebhookEventType};
 
 #[cfg(feature = "webhook")]
 use crate::domain::articles::ArticleFrontMatter;
+#[cfg(feature = "webhook")]
+use crate::infrastructure::github::webhook::FileChange;
 #[cfg(feature = "webhook")]
 use crate::infrastructure::github::{client::GithubClient, webhook::WebhookHandler};
 
@@ -149,50 +151,14 @@ impl ArticleService {
 
         tracing::info!("Processing push event for repository: {}", repo_name);
 
-        let changed_files = event.get_push_file_changes();
+        let (mut added_files, removed_files, modified_files) = event.get_push_file_changes();
 
-        let mut added_files = Vec::new();
-        let mut modified_files = Vec::new();
-        let mut removed_files = Vec::new();
+        self.process_modified_files(&owner, &repo_name, &modified_files)
+            .await?;
 
-        // Process each changed file based on its status
-        for file_change in &changed_files {
-            // Skip files with invalid extensions
-            if !self.is_valid_file(&file_change.file_path) {
-                continue;
-            }
-
-            match file_change.status.as_str() {
-                "added" => {
-                    added_files.push(file_change);
-                    tracing::info!("File {} added", file_change.file_path);
-                }
-
-                "modified" => {
-                    modified_files.push(file_change);
-                    tracing::info!("File {} modified", file_change.file_path);
-                }
-
-                "removed" => {
-                    removed_files.push(file_change);
-                    tracing::info!("File {} removed", file_change.file_path);
-                }
-
-                _ => {
-                    tracing::warn!(
-                        "Unknown file change status {} for file {}",
-                        file_change.status,
-                        file_change.file_path
-                    );
-                }
-            }
-        }
-
-        // TODO: Implement logic to handle added, modified, and removed files
-        for modified_file in modified_files {
-            self.process_modified_file(&owner, &repo_name, &modified_file.file_path)
-                .await?;
-        }
+        added_files.retain(|f| self.is_valid_file(&f.file_path));
+        self.process_added_and_removed_event(&owner, &repo_name, &added_files, &removed_files)
+            .await?;
 
         Ok(())
     }
@@ -223,6 +189,82 @@ impl ArticleService {
             .unwrap_or(false)
     }
 
+    #[cfg(feature = "webhook")]
+    pub async fn process_added_and_removed_event(
+        &self,
+        owner: &str,
+        repo: &str,
+        added: &[FileChange],
+        removed: &[FileChange],
+    ) -> Result<()> {
+        use std::collections::{HashMap, HashSet};
+        use time::OffsetDateTime;
+
+        let db_article_metadatas = self.db_repo.get_all_metadata().await?;
+
+        let mut db_path_to_id = HashMap::new();
+        let mut db_id_to_path = HashMap::new();
+
+        let mut add = Vec::new();
+        let mut update = Vec::new();
+        let mut remove = Vec::new();
+
+        let mut updated_article_uuids = HashSet::new();
+
+        for (id, path) in db_article_metadatas {
+            db_id_to_path.insert(id.clone(), path.clone());
+            db_path_to_id.insert(path, id);
+        }
+
+        let added_contents = self.github_client.fetch_files(owner, repo, added).await;
+        for (timestamp, content) in added_contents {
+            if let Ok(content) = content {
+                let (info, content) = self.extract_article(&content)?;
+                let timestamp = OffsetDateTime::from_unix_timestamp(timestamp)
+                    .unwrap_or_else(|_| OffsetDateTime::now_utc());
+
+                if db_id_to_path.contains_key(&info.id) {
+                    update.push(Article {
+                        id: info.id.clone(),
+                        title: info.title,
+                        category: info.category,
+                        status: info.status,
+                        tags: info.tags,
+                        summary: info.summary,
+                        content: content,
+                        created_at: OffsetDateTime::now_utc(),
+                        updated_at: timestamp,
+                    });
+
+                    updated_article_uuids.insert(info.id);
+                } else {
+                    add.push(Article {
+                        id: info.id,
+                        title: info.title,
+                        category: info.category,
+                        status: info.status,
+                        tags: info.tags,
+                        summary: info.summary,
+                        content: content,
+                        created_at: timestamp,
+                        updated_at: timestamp,
+                    });
+                }
+            }
+        }
+
+        for (uuid, _) in db_id_to_path {
+            if !updated_article_uuids.contains(&uuid) {
+                remove.push(uuid);
+            }
+        }
+
+        self.process_added_files(&add).await?;
+        self.process_removed_files(&remove).await?;
+
+        todo!()
+    }
+
     /// Process a newly added file from GitHub
     ///
     /// Fetches the file content from GitHub API, parses the front matter (YAML metadata),
@@ -246,22 +288,7 @@ impl ArticleService {
     /// - Save to database
     /// - Update search index
     #[cfg(feature = "webhook")]
-    pub async fn process_added_file(&self, owner: &str, repo: &str, file_path: &str) -> Result<()> {
-        let client = &self.github_client;
-        let content = client.get_file_content(owner, repo, file_path).await?;
-
-        let matter = Matter::<YAML>::new();
-        let result: ParsedEntity = matter.parse(&content)?;
-
-        if let Some(data) = result.data {
-            let front_matter: ArticleFrontMatter = data.deserialize()?;
-            // TODO: Extract article content (result.content)
-            // TODO: Create Article entity from front matter and content
-            // TODO: Validate article data
-            // TODO: Save to database using db_repo.save()
-            // TODO: Update search index using search_service
-        }
-
+    pub async fn process_added_files(&self, articles: &[Article]) -> Result<()> {
         todo!()
     }
 
@@ -278,42 +305,65 @@ impl ArticleService {
     /// * `owner` - Repository owner username
     /// * `repo` - Repository name
     /// * `file_path` - Path to the modified file within the repository
+    /// * `timestamp` - Timestamp of the modification
     ///
     /// # Returns
     ///
     /// * `Ok(())` - File processed and article updated successfully
     /// * `Err(SomeError)` - Error occurred during fetching, parsing, or updating
     ///
-    /// # TODO
-    ///
-    /// - Extract updated content and front matter
-    /// - Update article entity with new data
-    /// - Update database record
-    /// - Update search index
     #[cfg(feature = "webhook")]
-    pub async fn process_modified_file(
+    pub async fn process_modified_files(
         &self,
         owner: &str,
         repo: &str,
-        file_path: &str,
+        modified: &[FileChange],
     ) -> Result<()> {
-        let client = &self.github_client;
-        let content = client.get_file_content(owner, repo, file_path).await?;
+        use time::OffsetDateTime;
 
-        let matter = Matter::<YAML>::new();
-        let result: ParsedEntity = matter.parse(&content)?;
+        let contents = self
+            .github_client
+            .fetch_files(&owner, &repo, &modified)
+            .await;
 
-        // TODO: Extract article ID from file path or front matter
-        // TODO: Parse front matter and content
-        // TODO: Update existing article in database
-        // TODO: Update search index
+        let mut articles = Vec::new();
 
-        todo!()
+        for (timestamp, content) in contents {
+            if let Ok(content) = content {
+                let (article_info, content) = self.extract_article(&content)?;
+                let timestamp = OffsetDateTime::from_unix_timestamp(timestamp)
+                    .unwrap_or_else(|_| OffsetDateTime::now_utc());
+
+                let article = Article {
+                    id: article_info.id,
+                    title: article_info.title,
+                    category: article_info.category,
+                    content: content,
+                    status: article_info.status,
+                    summary: article_info.summary,
+                    tags: article_info.tags,
+                    created_at: OffsetDateTime::now_utc(),
+                    updated_at: timestamp,
+                };
+
+                articles.push(article);
+            }
+        }
+
+        self.db_repo.update_by_path(&articles).await?;
+
+        Ok(())
     }
 
     #[cfg(feature = "webhook")]
-    async fn extract_article_info(content: &str) -> Result<ArticleFrontMatter> {
-        todo!()
+    fn extract_article(&self, content: &str) -> Result<(ArticleFrontMatter, String)> {
+        let matter = Matter::<YAML>::new();
+        let front_matter = matter.parse::<ArticleFrontMatter>(content)?;
+        let info = front_matter
+            .data
+            .ok_or_else(|| anyhow::anyhow!("Extract article info failed."))?;
+
+        Ok((info, front_matter.content))
     }
 
     /// Process a removed file from GitHub
@@ -336,12 +386,11 @@ impl ArticleService {
     /// - Delete from database using db_repo.delete_by_path()
     /// - Remove from search index
     #[cfg(feature = "webhook")]
-    pub async fn process_removed_file(&self, file_path: &str) -> Result<()> {
+    pub async fn process_removed_files<T: AsRef<str>>(&self, uuid: &[T]) -> Result<()> {
         // TODO: Extract article ID from file path
         // TODO: Delete article from database
         // TODO: Remove article from search index
 
-        tracing::info!("Would remove file: {}", file_path);
         Ok(())
     }
 
@@ -418,6 +467,10 @@ impl ArticleService {
     /// * `Err(SomeError)` - Other error occurred during retrieval
     pub async fn get_article_by_id(&self, id: &str) -> Result<Article> {
         self.db_repo.get_post_by_id(id).await
+    }
+
+    pub async fn get_article_by_path(&self, path: &str) -> Result<Option<Article>> {
+        self.db_repo.find_optional_by_file_path(path).await
     }
 
     /// Perform full-text search on articles

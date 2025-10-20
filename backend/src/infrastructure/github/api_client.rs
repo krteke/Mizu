@@ -1,7 +1,11 @@
 use async_trait::async_trait;
 use base64::{Engine, prelude::BASE64_STANDARD};
+use futures::{StreamExt, stream};
 
-use crate::{errors::Result, infrastructure::github::client::GithubClient};
+use crate::{
+    errors::Result,
+    infrastructure::github::{client::GithubClient, webhook::FileChange},
+};
 
 /// GitHub API client implementation using the Octocrab library
 ///
@@ -171,5 +175,30 @@ impl GithubClient for GithubApiClient {
 
         // No content found - either file doesn't exist or path points to a directory
         Err(anyhow::anyhow!("No content found for file: {}", path).into())
+    }
+
+    async fn fetch_files(
+        &self,
+        owner: &str,
+        repo: &str,
+        changes: &[FileChange],
+    ) -> Vec<(i64, Result<String>)> {
+        const MAX_CONCURRENT: usize = 5;
+
+        let tasks: Vec<(String, i64)> = changes
+            .iter()
+            .map(|f| (f.file_path.clone(), f.timestamp.timestamp()))
+            .collect();
+
+        let contents: Vec<(i64, Result<String>)> = stream::iter(tasks)
+            .map(|(file_path, ts)| async move {
+                let content = self.get_file_content(owner, repo, &file_path).await;
+                (ts, content)
+            })
+            .buffer_unordered(MAX_CONCURRENT)
+            .collect()
+            .await;
+
+        contents
     }
 }

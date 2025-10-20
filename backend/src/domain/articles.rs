@@ -34,7 +34,7 @@ pub struct Article {
     pub category: PostCategory,
 
     /// Brief summary or excerpt of the article
-    pub summary: String,
+    pub summary: Option<String>,
 
     /// Full article content in markdown format
     pub content: String,

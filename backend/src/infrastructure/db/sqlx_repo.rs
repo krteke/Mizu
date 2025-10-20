@@ -100,7 +100,7 @@ impl ArticleRepository for SqlxArticleRepository {
     ///
     /// This method is currently marked as `todo!()` and needs to be implemented
     /// with proper SQL upsert logic (INSERT ... ON CONFLICT ... DO UPDATE).
-    async fn save(&self, article: &crate::domain::articles::Article) -> crate::errors::Result<()> {
+    async fn save(&self, article: &Article) -> Result<()> {
         todo!()
     }
 
@@ -123,7 +123,11 @@ impl ArticleRepository for SqlxArticleRepository {
     ///
     /// This method is currently marked as `todo!()` and needs to be implemented
     /// with logic to map file paths to article IDs or use paths directly.
-    async fn delete_by_path(&self, path: &str) -> crate::errors::Result<()> {
+    async fn delete_by_path(&self, path: &str) -> Result<()> {
+        todo!()
+    }
+
+    async fn update_by_path(&self, article: &[Article]) -> Result<()> {
         todo!()
     }
 
@@ -283,6 +287,11 @@ impl ArticleRepository for SqlxArticleRepository {
     }
 
     async fn find_optional_by_file_path(&self, path: &str) -> Result<Option<Article>> {
+        todo!()
+    }
+
+    // Vec<(id, path)>
+    async fn get_all_metadata(&self) -> Result<Vec<(String, String)>> {
         todo!()
     }
 }

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use octocrab::models::webhook_events::{
     WebhookEvent, WebhookEventType, payload::WebhookEventPayload,
 };
@@ -35,6 +36,8 @@ pub struct FileChange {
 
     /// Status of the change: "added", "modified", or "removed"
     pub status: String,
+
+    pub timestamp: DateTime<Utc>,
 
     /// Optional URL to view the file in the repository
     /// Note: Currently not populated, reserved for future use
@@ -166,7 +169,7 @@ pub trait WebhookHandler {
     ///     }
     /// }
     /// ```
-    fn get_push_file_changes(&self) -> Vec<FileChange>;
+    fn get_push_file_changes(&self) -> (Vec<FileChange>, Vec<FileChange>, Vec<FileChange>);
 
     /// Extract the full repository name from the webhook event
     ///
@@ -235,8 +238,10 @@ impl WebhookHandler for WebhookEvent {
     ///
     /// A vector containing all file changes across all commits. If the event
     /// is not a push event or contains no commits, returns an empty vector.
-    fn get_push_file_changes(&self) -> Vec<FileChange> {
-        let mut changes = Vec::new();
+    fn get_push_file_changes(&self) -> (Vec<FileChange>, Vec<FileChange>, Vec<FileChange>) {
+        let mut added_files = Vec::new();
+        let mut removed_files = Vec::new();
+        let mut modified_files = Vec::new();
 
         // Only process push events
         if self.kind == WebhookEventType::Push {
@@ -246,27 +251,30 @@ impl WebhookHandler for WebhookEvent {
                 for commit in &push_payload.commits {
                     // Collect added files
                     for file in &commit.added {
-                        changes.push(FileChange {
+                        added_files.push(FileChange {
                             file_path: file.clone(),
                             status: "added".to_string(),
+                            timestamp: commit.timestamp,
                             row_url: None,
                         });
                     }
 
                     // Collect removed files
                     for file in &commit.removed {
-                        changes.push(FileChange {
+                        removed_files.push(FileChange {
                             file_path: file.clone(),
                             status: "removed".to_string(),
+                            timestamp: commit.timestamp,
                             row_url: None,
                         });
                     }
 
                     // Collect modified files
                     for file in &commit.modified {
-                        changes.push(FileChange {
+                        modified_files.push(FileChange {
                             file_path: file.clone(),
                             status: "modified".to_string(),
+                            timestamp: commit.timestamp,
                             row_url: None,
                         });
                     }
@@ -274,7 +282,7 @@ impl WebhookHandler for WebhookEvent {
             }
         }
 
-        changes
+        (added_files, removed_files, modified_files)
     }
 
     /// Get the full repository name from the webhook event
@@ -339,6 +347,7 @@ mod tests {
         let change = FileChange {
             file_path: "test.md".to_string(),
             status: "added".to_string(),
+            timestamp: Utc::now(),
             row_url: None,
         };
 
@@ -352,6 +361,7 @@ mod tests {
         let change = FileChange {
             file_path: "test.md".to_string(),
             status: "modified".to_string(),
+            timestamp: Utc::now(),
             row_url: Some("https://github.com/...".to_string()),
         };
 

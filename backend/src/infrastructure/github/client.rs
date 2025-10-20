@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::errors::Result;
+use crate::{errors::Result, infrastructure::github::webhook::FileChange};
 
 /// GitHub client trait for fetching repository content
 ///
@@ -123,4 +123,11 @@ pub trait GithubClient: Send + Sync {
     /// application's error types, providing clear error messages for
     /// common scenarios like missing files or permission issues.
     async fn get_file_content(&self, owner: &str, repo: &str, path: &str) -> Result<String>;
+
+    async fn fetch_files(
+        &self,
+        owner: &str,
+        repo: &str,
+        changes: &[FileChange],
+    ) -> Vec<(i64, Result<String>)>;
 }

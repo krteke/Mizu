@@ -6,6 +6,8 @@ use backend::domain::articles::{Article, PostCategory};
 use backend::domain::repositories::ArticleRepository;
 use backend::domain::search::{SearchHit, SearchService};
 use backend::errors::{GetPostsError, Result};
+#[cfg(feature = "webhook")]
+use backend::infrastructure::github::webhook::FileChange;
 use backend::interfaces::http::dtos::PostResponse;
 use meilisearch_sdk::client::Client;
 use std::collections::HashMap;
@@ -126,6 +128,14 @@ impl ArticleRepository for MockArticleRepository {
 
         todo!()
     }
+
+    async fn update_by_path(&self, article: &[Article]) -> Result<()> {
+        todo!()
+    }
+
+    async fn get_all_metadata(&self) -> Result<Vec<(String, String)>> {
+        todo!()
+    }
 }
 
 /// Mock 搜索服务实现
@@ -207,6 +217,15 @@ impl GithubClient for MockGithubClient {
             .map(|s| s.clone())
             .ok_or_else(|| anyhow::anyhow!("File not found: {}", path).into())
     }
+
+    async fn fetch_files(
+        &self,
+        owner: &str,
+        repo: &str,
+        changes: &[FileChange],
+    ) -> Vec<(i64, Result<String>)> {
+        todo!()
+    }
 }
 
 /// Create a test article with the given parameters
@@ -241,7 +260,7 @@ pub fn create_test_article(id: &str, title: &str, category: PostCategory) -> Art
         title: title.to_string(),
         tags: vec!["test".to_string(), "rust".to_string()],
         category,
-        summary: format!("Summary for {}", title),
+        summary: Some(format!("Summary for {}", title)),
         content: format!("Content for {}", title),
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),

@@ -40,7 +40,7 @@ use crate::domain::search::SearchHit;
 ///     id: "article-123".to_string(),
 ///     title: "Introduction to Rust".to_string(),
 ///     tags: vec!["rust".to_string(), "tutorial".to_string()],
-///     summary: "Learn Rust basics...".to_string(),
+///     summary: Some("Learn Rust basics...".to_string()),
 /// };
 /// ```
 #[derive(Serialize, Deserialize)]
@@ -56,7 +56,7 @@ pub struct PostResponse {
 
     /// Brief summary or excerpt of the article content
     /// Used in list views instead of full content
-    pub summary: String,
+    pub summary: Option<String>,
 }
 
 /// Data Transfer Object for search results
