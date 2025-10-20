@@ -70,19 +70,17 @@ pub trait ArticleRepository: Send + Sync {
     /// ```
     async fn find_optional_by_id(&self, id: &str) -> Result<Option<Article>>;
 
-    /// Save or update an article
+    /// Save article(s)
     ///
-    /// This method persists an article to the database. If an article with
-    /// the same ID already exists, it will be updated. Otherwise, a new
-    /// article record will be created (upsert behavior).
+    /// This method persists article(s) to the database.
     ///
     /// # Arguments
     ///
-    /// * `article` - The article entity to save or update
+    /// * `articles` - The article entities to save
     ///
     /// # Returns
     ///
-    /// * `Ok(())` - Article was saved successfully
+    /// * `Ok(())` - Articles was saved successfully
     /// * `Err(SomeError)` - An error occurred during the save operation
     ///
     /// # Example
@@ -93,9 +91,11 @@ pub trait ArticleRepository: Send + Sync {
     ///     title: "My Article".to_string(),
     ///     // ... other fields
     /// };
-    /// repo.save(&article).await?;
+    /// repo.save(&[article]).await?;
     /// ```
-    async fn save(&self, article: &Article) -> Result<()>;
+    async fn save(&self, articles: &[Article]) -> Result<()>;
+
+    async fn update(&self, articles: &[Article]) -> Result<()>;
 
     async fn update_by_path(&self, article: &[Article]) -> Result<()>;
 

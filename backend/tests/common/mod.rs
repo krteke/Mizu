@@ -65,10 +65,12 @@ impl ArticleRepository for MockArticleRepository {
         Ok(articles.get(id).map(|a| a.clone()))
     }
 
-    async fn save(&self, article: &Article) -> Result<()> {
-        let mut articles = self.articles.lock().unwrap();
-        articles.insert(article.id.clone(), article.clone());
-        Ok(())
+    async fn save(&self, articles: &[Article]) -> Result<()> {
+        todo!()
+    }
+
+    async fn update(&self, articles: &[Article]) -> Result<()> {
+        todo!()
     }
 
     async fn delete_by_path(&self, path: &str) -> Result<()> {
@@ -310,8 +312,8 @@ mod tests {
         let repo = MockArticleRepository::new();
         let article = create_test_article("test-1", "Test Article", PostCategory::Article);
 
-        // Save the article
-        repo.save(&article).await.unwrap();
+        // Save the articles
+        repo.save(&[article]).await.unwrap();
 
         // Find the article
         let found = repo.find_optional_by_id("test-1").await.unwrap();
@@ -324,7 +326,7 @@ mod tests {
         let repo = MockArticleRepository::new();
         let article = create_test_article("test-2", "Test Article", PostCategory::Article);
 
-        repo.save(&article).await.unwrap();
+        repo.save(&[article]).await.unwrap();
         repo.delete_by_path("test-2").await.unwrap();
 
         let found = repo.find_optional_by_id("test-2").await.unwrap();
@@ -339,9 +341,7 @@ mod tests {
         let article2 = create_test_article("2", "Article 2", PostCategory::Article);
         let note = create_test_article("3", "Note 1", PostCategory::Note);
 
-        repo.save(&article1).await.unwrap();
-        repo.save(&article2).await.unwrap();
-        repo.save(&note).await.unwrap();
+        repo.save(&[article1, article2, note]).await.unwrap();
 
         let results = repo.get_posts_by_category("article", 10, 0).await.unwrap();
         assert_eq!(results.len(), 2);

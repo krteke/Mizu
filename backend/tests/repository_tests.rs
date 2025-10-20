@@ -49,7 +49,7 @@ async fn test_sqlx_repo_find_optional_by_id_exists() {
     };
 
     // Save the article
-    repo.save(&article).await.unwrap();
+    repo.save(&[article]).await.unwrap();
 
     // Find the article
     let found = repo.find_optional_by_id("test-find-exists").await.unwrap();
@@ -118,9 +118,7 @@ async fn test_sqlx_repo_get_by_category() {
         updated_at: OffsetDateTime::now_utc(),
     };
 
-    repo.save(&article1).await.unwrap();
-    repo.save(&article2).await.unwrap();
-    repo.save(&note).await.unwrap();
+    repo.save(&[article1, article2, note]).await.unwrap();
 
     // Query for article category
     let results = repo.get_posts_by_category("article", 10, 0).await.unwrap();
@@ -158,7 +156,7 @@ async fn test_sqlx_repo_get_by_category_pagination() {
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
         };
-        repo.save(&article).await.unwrap();
+        repo.save(&[article]).await.unwrap();
     }
 
     // First page: get 3 items
@@ -193,7 +191,7 @@ async fn test_sqlx_repo_get_by_id() {
         updated_at: OffsetDateTime::now_utc(),
     };
 
-    repo.save(&article).await.unwrap();
+    repo.save(&[article]).await.unwrap();
 
     let found = repo.get_post_by_id("test-get-by-id").await.unwrap();
     assert_eq!(found.id, "test-get-by-id");
@@ -234,7 +232,7 @@ async fn test_sqlx_repo_get_all() {
         updated_at: OffsetDateTime::now_utc(),
     };
 
-    repo.save(&article).await.unwrap();
+    repo.save(&[article]).await.unwrap();
 
     let all_articles = repo.get_all().await.unwrap();
     assert!(!all_articles.is_empty());
@@ -266,7 +264,7 @@ async fn test_sqlx_repo_delete_by_path() {
     };
 
     // Save article
-    repo.save(&article).await.unwrap();
+    repo.save(&[article]).await.unwrap();
 
     // Verify article exists
     let exists = repo.find_optional_by_id("test-delete").await.unwrap();
@@ -299,14 +297,14 @@ async fn test_sqlx_repo_save_updates_existing() {
         updated_at: OffsetDateTime::now_utc(),
     };
 
-    repo.save(&article).await.unwrap();
+    repo.save(&[article.clone()]).await.unwrap();
 
     // Update article
     article.title = "Updated Title".to_string();
     article.status = "published".to_string();
     article.updated_at = OffsetDateTime::now_utc();
 
-    repo.save(&article).await.unwrap();
+    repo.update(&[article]).await.unwrap();
 
     // Verify update
     let updated = repo.get_post_by_id("test-update").await.unwrap();
@@ -344,7 +342,7 @@ async fn test_sqlx_repo_multiple_categories() {
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
         };
-        repo.save(&article).await.unwrap();
+        repo.save(&[article]).await.unwrap();
     }
 
     // Verify each category can be queried

@@ -209,7 +209,7 @@ impl ArticleService {
         let mut update = Vec::new();
         let mut remove = Vec::new();
 
-        let mut updated_article_uuids = HashSet::new();
+        let mut updated_article_path = HashSet::new();
 
         for (id, path) in db_article_metadatas {
             db_id_to_path.insert(id.clone(), path.clone());
@@ -234,9 +234,10 @@ impl ArticleService {
                         content: content,
                         created_at: OffsetDateTime::now_utc(),
                         updated_at: timestamp,
+                        deleted_at: None,
                     });
 
-                    updated_article_uuids.insert(info.id);
+                    updated_article_path.insert(db_id_to_path.get(&info.id).unwrap());
                 } else {
                     add.push(Article {
                         id: info.id,
@@ -248,17 +249,19 @@ impl ArticleService {
                         content: content,
                         created_at: timestamp,
                         updated_at: timestamp,
+                        deleted_at: None,
                     });
                 }
             }
         }
 
-        for (uuid, _) in db_id_to_path {
-            if !updated_article_uuids.contains(&uuid) {
-                remove.push(uuid);
+        for rf in removed {
+            if !updated_article_path.contains(&rf.file_path) {
+                remove.push(&rf.file_path);
             }
         }
 
+        // self.process_modified_files(&owner, &repo, &update).await?;
         self.process_added_files(&add).await?;
         self.process_removed_files(&remove).await?;
 
@@ -267,29 +270,20 @@ impl ArticleService {
 
     /// Process a newly added file from GitHub
     ///
-    /// Fetches the file content from GitHub API, parses the front matter (YAML metadata),
-    /// and creates a new article in the database and search index.
-    ///
     /// # Arguments
     ///
-    /// * `owner` - Repository owner username
-    /// * `repo` - Repository name
-    /// * `file_path` - Path to the file within the repository
+    /// * `articles` - List of articles to process
     ///
     /// # Returns
     ///
     /// * `Ok(())` - File processed and article created successfully
     /// * `Err(SomeError)` - Error occurred during fetching, parsing, or saving
     ///
-    /// # TODO
-    ///
-    /// - Extract article ID from front matter or file path
-    /// - Create article entity from front matter and content
-    /// - Save to database
-    /// - Update search index
     #[cfg(feature = "webhook")]
     pub async fn process_added_files(&self, articles: &[Article]) -> Result<()> {
-        todo!()
+        self.db_repo.save(articles).await?;
+
+        Ok(())
     }
 
     /// Process a modified file from GitHub
@@ -344,6 +338,7 @@ impl ArticleService {
                     tags: article_info.tags,
                     created_at: OffsetDateTime::now_utc(),
                     updated_at: timestamp,
+                    deleted_at: None,
                 };
 
                 articles.push(article);
@@ -373,20 +368,15 @@ impl ArticleService {
     ///
     /// # Arguments
     ///
-    /// * `file_path` - Path to the removed file
+    /// * `uuid` - Id of the removed file
     ///
     /// # Returns
     ///
     /// * `Ok(())` - Article removed successfully
     /// * `Err(SomeError)` - Error occurred during deletion
     ///
-    /// # TODO
-    ///
-    /// - Extract article ID from file path
-    /// - Delete from database using db_repo.delete_by_path()
-    /// - Remove from search index
     #[cfg(feature = "webhook")]
-    pub async fn process_removed_files<T: AsRef<str>>(&self, uuid: &[T]) -> Result<()> {
+    pub async fn process_removed_files<T: AsRef<str>>(&self, path: &[T]) -> Result<()> {
         // TODO: Extract article ID from file path
         // TODO: Delete article from database
         // TODO: Remove article from search index

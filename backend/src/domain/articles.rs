@@ -47,6 +47,9 @@ pub struct Article {
 
     /// Timestamp when the article was last updated
     pub updated_at: OffsetDateTime,
+
+    /// Timestamp when the article was deleted
+    pub deleted_at: Option<OffsetDateTime>,
 }
 
 /// Front matter structure for articles loaded from markdown files

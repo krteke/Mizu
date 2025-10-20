@@ -82,25 +82,24 @@ impl SqlxArticleRepository {
 
 #[async_trait]
 impl ArticleRepository for SqlxArticleRepository {
-    /// Save or update an article in the database
+    /// Save article(s)
     ///
-    /// This method performs an upsert operation: if an article with the same ID
-    /// exists, it will be updated; otherwise, a new record will be inserted.
+    /// This method persists article(s) to the database.
     ///
     /// # Arguments
     ///
-    /// * `article` - The article entity to save or update
+    /// * `articles` - The article entities to save
     ///
     /// # Returns
     ///
-    /// * `Ok(())` - Article was saved successfully
-    /// * `Err(SomeError)` - Database error occurred during the operation
+    /// * `Ok(())` - Articles was saved successfully
+    /// * `Err(SomeError)` - An error occurred during the save operation
     ///
-    /// # Implementation Note
-    ///
-    /// This method is currently marked as `todo!()` and needs to be implemented
-    /// with proper SQL upsert logic (INSERT ... ON CONFLICT ... DO UPDATE).
-    async fn save(&self, article: &Article) -> Result<()> {
+    async fn save(&self, articles: &[Article]) -> Result<()> {
+        todo!()
+    }
+
+    async fn update(&self, articles: &[Article]) -> Result<()> {
         todo!()
     }
 
