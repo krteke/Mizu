@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::{
     app_state::AppState,
-    domain::articles::{Article, PostCategory, PostParams},
-    errors::{GetPostsError, Result},
+    domain::articles::{Article, PostParams},
+    errors::Result,
     interfaces::http::dtos::PostResponse,
 };
 

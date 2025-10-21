@@ -103,7 +103,7 @@ pub async fn github_webhook(
 
     // Step 3: Parse the webhook payload into a structured WebhookEvent
     // The octocrab library handles the complex JSON parsing based on event type
-    let evnet = WebhookEvent::try_from_header_and_body(event_type, &body)?;
+    let event = WebhookEvent::try_from_header_and_body(event_type, &body)?;
 
     // Step 4: Process the webhook event asynchronously
     // Catch all errors and log them, but don't fail the request
@@ -111,7 +111,7 @@ pub async fn github_webhook(
     // that we can handle later (e.g., temporary database issues)
     if let Err(err) = state
         .article_service
-        .process_github_webhook_event(&evnet)
+        .process_github_webhook_event(&event)
         .await
     {
         tracing::error!("Failed to process webhook payload: {}", err);
