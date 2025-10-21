@@ -1,3 +1,5 @@
+#[cfg(feature = "webhook")]
+use std::collections::HashSet;
 use std::sync::Arc;
 
 #[cfg(feature = "webhook")]
@@ -197,93 +199,74 @@ impl ArticleService {
         added: &[FileChange],
         removed: &[FileChange],
     ) -> Result<()> {
-        use std::collections::{HashMap, HashSet};
+        use std::collections::HashSet;
         use time::OffsetDateTime;
 
-        let db_article_metadatas = self.db_repo.get_all_metadata().await?;
+        use crate::infrastructure::time_utils::chrono_to_offset;
 
-        let mut db_path_to_id = HashMap::new();
-        let mut db_id_to_path = HashMap::new();
+        let removed_paths: HashSet<&str> = removed.iter().map(|f| f.file_path.as_str()).collect();
+        let mut removed_files_id = self.db_repo.get_by_paths(&removed_paths).await?;
 
         let mut add = Vec::new();
-        let mut update = Vec::new();
-        let mut remove = Vec::new();
-
-        let mut updated_article_path = HashSet::new();
-
-        for (id, path) in db_article_metadatas {
-            db_id_to_path.insert(id.clone(), path.clone());
-            db_path_to_id.insert(path, id);
-        }
+        let mut modify = Vec::new();
 
         let added_contents = self.github_client.fetch_files(owner, repo, added).await;
-        for (timestamp, content) in added_contents {
-            if let Ok(content) = content {
-                let (info, content) = self.extract_article(&content)?;
-                let timestamp = OffsetDateTime::from_unix_timestamp(timestamp)
-                    .unwrap_or_else(|_| OffsetDateTime::now_utc());
+        for (timestamp, content, file_path) in added_contents {
+            match content {
+                Ok(content) => match self.extract_article(&content) {
+                    Ok((info, content)) => {
+                        let offset_timestamp = chrono_to_offset(timestamp).unwrap_or_else(|_| {
+                            tracing::warn!("Failed to parse timestamp");
+                            OffsetDateTime::now_utc()
+                        });
 
-                if db_id_to_path.contains_key(&info.id) {
-                    update.push(Article {
-                        id: info.id.clone(),
-                        title: info.title,
-                        category: info.category,
-                        status: info.status,
-                        tags: info.tags,
-                        summary: info.summary,
-                        content: content,
-                        created_at: OffsetDateTime::now_utc(),
-                        updated_at: timestamp,
-                        deleted_at: None,
-                    });
+                        if removed_files_id.contains(&info.id) {
+                            modify.push(FileChange {
+                                file_path,
+                                status: "modified".to_string(),
+                                timestamp: timestamp,
+                                row_url: None,
+                            });
+                            removed_files_id.remove(&info.id);
+                        } else {
+                            add.push(Article {
+                                id: info.id,
+                                title: info.title,
+                                tags: info.tags,
+                                status: info.status,
+                                summary: info.summary,
+                                category: info.category,
+                                content: content,
+                                created_at: offset_timestamp,
+                                updated_at: offset_timestamp,
+                                deleted_at: None,
+                            });
+                        }
+                    }
 
-                    updated_article_path.insert(db_id_to_path.get(&info.id).unwrap());
-                } else {
-                    add.push(Article {
-                        id: info.id,
-                        title: info.title,
-                        category: info.category,
-                        status: info.status,
-                        tags: info.tags,
-                        summary: info.summary,
-                        content: content,
-                        created_at: timestamp,
-                        updated_at: timestamp,
-                        deleted_at: None,
-                    });
+                    Err(e) => {
+                        tracing::warn!("Failed to extract article: {}", e);
+                    }
+                },
+
+                Err(e) => {
+                    tracing::warn!("Failed to fetch file content: {}", e)
                 }
             }
         }
 
-        for rf in removed {
-            if !updated_article_path.contains(&rf.file_path) {
-                remove.push(&rf.file_path);
-            }
-        }
+        self.process_modified_files(&owner, &repo, &modify).await?;
 
-        // self.process_modified_files(&owner, &repo, &update).await?;
-        self.process_added_files(&add).await?;
-        self.process_removed_files(&remove).await?;
+        let mut tx = self.db_repo.begin_transaction().await?;
+        if !add.is_empty() {
+            tx.insert_batch(&add).await?;
+        }
+        if !removed_files_id.is_empty() {
+            tx.delete_batch(&removed_files_id).await?;
+        }
+        tx.commit().await?;
 
         todo!()
-    }
-
-    /// Process a newly added file from GitHub
-    ///
-    /// # Arguments
-    ///
-    /// * `articles` - List of articles to process
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - File processed and article created successfully
-    /// * `Err(SomeError)` - Error occurred during fetching, parsing, or saving
-    ///
-    #[cfg(feature = "webhook")]
-    pub async fn process_added_files(&self, articles: &[Article]) -> Result<()> {
-        self.db_repo.save(articles).await?;
-
-        Ok(())
     }
 
     /// Process a modified file from GitHub
@@ -315,6 +298,8 @@ impl ArticleService {
     ) -> Result<()> {
         use time::OffsetDateTime;
 
+        use crate::infrastructure::time_utils::chrono_to_offset;
+
         let contents = self
             .github_client
             .fetch_files(&owner, &repo, &modified)
@@ -322,11 +307,14 @@ impl ArticleService {
 
         let mut articles = Vec::new();
 
-        for (timestamp, content) in contents {
+        for (timestamp, content, file_path) in contents {
             if let Ok(content) = content {
                 let (article_info, content) = self.extract_article(&content)?;
-                let timestamp = OffsetDateTime::from_unix_timestamp(timestamp)
-                    .unwrap_or_else(|_| OffsetDateTime::now_utc());
+
+                let offset_timestamp = chrono_to_offset(timestamp).unwrap_or_else(|_| {
+                    tracing::warn!("Failed to parse timestamp");
+                    OffsetDateTime::now_utc()
+                });
 
                 let article = Article {
                     id: article_info.id,
@@ -337,11 +325,11 @@ impl ArticleService {
                     summary: article_info.summary,
                     tags: article_info.tags,
                     created_at: OffsetDateTime::now_utc(),
-                    updated_at: timestamp,
+                    updated_at: offset_timestamp,
                     deleted_at: None,
                 };
 
-                articles.push(article);
+                articles.push((article, file_path));
             }
         }
 
@@ -359,29 +347,6 @@ impl ArticleService {
             .ok_or_else(|| anyhow::anyhow!("Extract article info failed."))?;
 
         Ok((info, front_matter.content))
-    }
-
-    /// Process a removed file from GitHub
-    ///
-    /// Extracts the article ID from the file path and removes the article
-    /// from both the database and search index.
-    ///
-    /// # Arguments
-    ///
-    /// * `uuid` - Id of the removed file
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - Article removed successfully
-    /// * `Err(SomeError)` - Error occurred during deletion
-    ///
-    #[cfg(feature = "webhook")]
-    pub async fn process_removed_files<T: AsRef<str>>(&self, path: &[T]) -> Result<()> {
-        // TODO: Extract article ID from file path
-        // TODO: Delete article from database
-        // TODO: Remove article from search index
-
-        Ok(())
     }
 
     /// Check if an article ID is available for use

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 
 use crate::{errors::Result, infrastructure::github::webhook::FileChange};
 
@@ -129,5 +130,5 @@ pub trait GithubClient: Send + Sync {
         owner: &str,
         repo: &str,
         changes: &[FileChange],
-    ) -> Vec<(i64, Result<String>)>;
+    ) -> Vec<(DateTime<Utc>, Result<String>, String)>;
 }

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use base64::{Engine, prelude::BASE64_STANDARD};
+use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream};
 
 use crate::{
@@ -182,18 +183,18 @@ impl GithubClient for GithubApiClient {
         owner: &str,
         repo: &str,
         changes: &[FileChange],
-    ) -> Vec<(i64, Result<String>)> {
+    ) -> Vec<(DateTime<Utc>, Result<String>, String)> {
         const MAX_CONCURRENT: usize = 5;
 
-        let tasks: Vec<(String, i64)> = changes
+        let tasks: Vec<(String, DateTime<Utc>)> = changes
             .iter()
-            .map(|f| (f.file_path.clone(), f.timestamp.timestamp()))
+            .map(|f| (f.file_path.clone(), f.timestamp))
             .collect();
 
-        let contents: Vec<(i64, Result<String>)> = stream::iter(tasks)
+        let contents: Vec<(DateTime<Utc>, Result<String>, String)> = stream::iter(tasks)
             .map(|(file_path, ts)| async move {
                 let content = self.get_file_content(owner, repo, &file_path).await;
-                (ts, content)
+                (ts, content, file_path)
             })
             .buffer_unordered(MAX_CONCURRENT)
             .collect()

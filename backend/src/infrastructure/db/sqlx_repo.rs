@@ -1,7 +1,13 @@
+use std::collections::HashSet;
+
 use async_trait::async_trait;
+use sqlx::{Acquire, Postgres, Transaction};
 
 use crate::{
-    domain::{articles::Article, repositories::ArticleRepository},
+    domain::{
+        articles::Article,
+        repositories::{ArticleRepository, TransactionGuard, TransactionOps},
+    },
     errors::{GetPostsError, Result},
     interfaces::http::dtos::PostResponse,
 };
@@ -126,7 +132,7 @@ impl ArticleRepository for SqlxArticleRepository {
         todo!()
     }
 
-    async fn update_by_path(&self, article: &[Article]) -> Result<()> {
+    async fn update_by_path(&self, article_with_path: &[(Article, String)]) -> Result<()> {
         todo!()
     }
 
@@ -289,8 +295,79 @@ impl ArticleRepository for SqlxArticleRepository {
         todo!()
     }
 
-    // Vec<(id, path)>
-    async fn get_all_metadata(&self) -> Result<Vec<(String, String)>> {
+    // HashMap<id, path>
+    async fn get_by_paths(&self, paths: &HashSet<&str>) -> Result<HashSet<String>> {
         todo!()
+    }
+
+    async fn begin_transaction(&self) -> Result<TransactionGuard> {
+        let tx = self.pool.begin().await?;
+
+        Ok(TransactionGuard {
+            inner: Box::new(SqlxTransaction { tx }),
+        })
+    }
+}
+
+struct SqlxTransaction {
+    tx: Transaction<'static, Postgres>,
+}
+
+#[async_trait]
+impl TransactionOps for SqlxTransaction {
+    async fn insert_batch(&mut self, articles: &[Article]) -> Result<()> {
+        if articles.is_empty() {
+            return Ok(());
+        }
+
+        let mut query = sqlx::QueryBuilder::new(
+            "INSERT INTO articles (id, title, tags, category, summary, content, status, created_at, updated_at) ",
+        );
+        query.push_values(articles, |mut b, article| {
+            b.push_bind(&article.id);
+            b.push_bind(&article.title);
+            b.push_bind(&article.tags);
+            b.push_bind(&article.category);
+            b.push_bind(&article.summary);
+            b.push_bind(&article.content);
+            b.push_bind(&article.status);
+            b.push_bind(article.created_at);
+            b.push_bind(article.updated_at);
+        });
+        query.push(
+            " ON CONFLICT (id) DO UPDATE SET \
+                    title = EXCLUDED.title, \
+                    tags = EXCLUDED.tags, \
+                    category = EXCLUDED.category, \
+                    summary = EXCLUDED.summary, \
+                    content = EXCLUDED.content, \
+                    status = EXCLUDED.status, \
+                    created_at = EXCLUDED.created_at, \
+                    updated_at = EXCLUDED.updated_at",
+        );
+        query.build().execute(self.tx.acquire().await?).await?;
+
+        Ok(())
+    }
+
+    async fn delete_batch(&mut self, id: &HashSet<String>) -> Result<()> {
+        if id.is_empty() {
+            return Ok(());
+        }
+
+        let del_id: Vec<&str> = id.iter().map(|p| p.as_str()).collect();
+
+        sqlx::query("UPDATE articles SET deleted_at = NOW() WHERE id = ANY($1)")
+            .bind(del_id)
+            .execute(self.tx.acquire().await?)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn commit(self: Box<Self>) -> Result<()> {
+        self.tx.commit().await?;
+
+        Ok(())
     }
 }

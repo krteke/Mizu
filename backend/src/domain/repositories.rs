@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use async_trait::async_trait;
 
 use crate::{domain::articles::Article, errors::Result, interfaces::http::dtos::PostResponse};
@@ -97,7 +99,7 @@ pub trait ArticleRepository: Send + Sync {
 
     async fn update(&self, articles: &[Article]) -> Result<()>;
 
-    async fn update_by_path(&self, article: &[Article]) -> Result<()>;
+    async fn update_by_path(&self, article_with_path: &[(Article, String)]) -> Result<()>;
 
     /// Delete an article by its file path
     ///
@@ -204,14 +206,32 @@ pub trait ArticleRepository: Send + Sync {
 
     async fn find_optional_by_file_path(&self, path: &str) -> Result<Option<Article>>;
 
-    /// Retrieve metadata for all articles
-    ///
-    /// This method fetches id and path for all articles.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Vec<(String, String)>)` - Id and path of all articles
-    /// * `Err(SomeError)` - An error occurred during the query
-    ///
-    async fn get_all_metadata(&self) -> Result<Vec<(String, String)>>;
+    async fn get_by_paths(&self, paths: &HashSet<&str>) -> Result<HashSet<String>>;
+
+    async fn begin_transaction(&self) -> Result<TransactionGuard>;
+}
+
+pub struct TransactionGuard {
+    pub inner: Box<dyn TransactionOps>,
+}
+
+impl TransactionGuard {
+    pub async fn insert_batch(&mut self, articles: &[Article]) -> Result<()> {
+        self.inner.insert_batch(articles).await
+    }
+
+    pub async fn delete_batch(&mut self, paths: &HashSet<String>) -> Result<()> {
+        self.inner.delete_batch(paths).await
+    }
+
+    pub async fn commit(self) -> Result<()> {
+        self.inner.commit().await
+    }
+}
+
+#[async_trait]
+pub trait TransactionOps: Send {
+    async fn insert_batch(&mut self, articles: &[Article]) -> Result<()>;
+    async fn delete_batch(&mut self, id: &HashSet<String>) -> Result<()>;
+    async fn commit(self: Box<Self>) -> Result<()>;
 }

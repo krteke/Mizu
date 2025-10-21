@@ -3,14 +3,16 @@
 /// Provides Mock implementations and helper functions for testing
 use async_trait::async_trait;
 use backend::domain::articles::{Article, PostCategory};
-use backend::domain::repositories::ArticleRepository;
+use backend::domain::repositories::{ArticleRepository, TransactionGuard};
 use backend::domain::search::{SearchHit, SearchService};
 use backend::errors::{GetPostsError, Result};
 #[cfg(feature = "webhook")]
 use backend::infrastructure::github::webhook::FileChange;
 use backend::interfaces::http::dtos::PostResponse;
+#[cfg(feature = "webhook")]
+use chrono::{DateTime, Utc};
 use meilisearch_sdk::client::Client;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use time::OffsetDateTime;
 
@@ -131,11 +133,15 @@ impl ArticleRepository for MockArticleRepository {
         todo!()
     }
 
-    async fn update_by_path(&self, article: &[Article]) -> Result<()> {
+    async fn update_by_path(&self, article_with_path: &[(Article, String)]) -> Result<()> {
         todo!()
     }
 
-    async fn get_all_metadata(&self) -> Result<Vec<(String, String)>> {
+    async fn get_by_paths(&self, paths: &HashSet<&str>) -> Result<HashSet<String>> {
+        todo!()
+    }
+
+    async fn begin_transaction(&self) -> Result<TransactionGuard> {
         todo!()
     }
 }
@@ -225,7 +231,7 @@ impl GithubClient for MockGithubClient {
         owner: &str,
         repo: &str,
         changes: &[FileChange],
-    ) -> Vec<(i64, Result<String>)> {
+    ) -> Vec<(DateTime<Utc>, Result<String>, String)> {
         todo!()
     }
 }
@@ -267,6 +273,7 @@ pub fn create_test_article(id: &str, title: &str, category: PostCategory) -> Art
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     }
 }
 

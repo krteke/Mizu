@@ -79,6 +79,7 @@ fn test_article_creation() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     assert_eq!(article.id, "test-123");
@@ -101,6 +102,7 @@ fn test_article_serialization() {
         status: "draft".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     // Test serialization
@@ -127,6 +129,7 @@ fn test_article_with_empty_tags() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     assert_eq!(article.tags.len(), 0);
@@ -152,6 +155,7 @@ fn test_article_with_multiple_tags() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     assert_eq!(article.tags.len(), 4);
@@ -173,6 +177,7 @@ fn test_article_status_values() {
             status: status.to_string(),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
+            deleted_at: None,
         };
 
         assert_eq!(article.status, status);

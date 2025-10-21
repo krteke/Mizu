@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use std::str::FromStr;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 /// Article domain entity representing a blog post or article
 ///

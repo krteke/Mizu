@@ -46,6 +46,7 @@ async fn test_sqlx_repo_find_optional_by_id_exists() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     // Save the article
@@ -92,6 +93,7 @@ async fn test_sqlx_repo_get_by_category() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     let article2 = Article {
@@ -104,6 +106,7 @@ async fn test_sqlx_repo_get_by_category() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     let note = Article {
@@ -116,6 +119,7 @@ async fn test_sqlx_repo_get_by_category() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     repo.save(&[article1, article2, note]).await.unwrap();
@@ -155,6 +159,7 @@ async fn test_sqlx_repo_get_by_category_pagination() {
             status: "published".to_string(),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
+            deleted_at: None,
         };
         repo.save(&[article]).await.unwrap();
     }
@@ -189,6 +194,7 @@ async fn test_sqlx_repo_get_by_id() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     repo.save(&[article]).await.unwrap();
@@ -230,6 +236,7 @@ async fn test_sqlx_repo_get_all() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     repo.save(&[article]).await.unwrap();
@@ -261,6 +268,7 @@ async fn test_sqlx_repo_delete_by_path() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     // Save article
@@ -295,6 +303,7 @@ async fn test_sqlx_repo_save_updates_existing() {
         status: "draft".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
+        deleted_at: None,
     };
 
     repo.save(&[article.clone()]).await.unwrap();
@@ -341,6 +350,7 @@ async fn test_sqlx_repo_multiple_categories() {
             status: "published".to_string(),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
+            deleted_at: None,
         };
         repo.save(&[article]).await.unwrap();
     }
