@@ -1,0 +1,72 @@
+.code-block-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.code-block-wrapper::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.code-block-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.code-block-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.code-block-content pre {
+    margin: 0 !important;
+    padding: 1rem !important;
+    overflow: auto;
+    line-height: 0.8 !important;
+}
+
+.code-block-content code {
+    font-family: var(--font-mono), "JetBrains Mono", "Courier New", monospace;
+    font-size: 0.875rem;
+    line-height: inherit;
+    counter-reset: line;
+    font-feature-settings:
+        "liga" 1,
+        "calt" 1;
+}
+
+.code-block-content .line {
+    display: block;
+    min-height: 0.8rem;
+    line-height: 0.8;
+}
+
+.code-block-content.line-numbers .line {
+    /*width: 100%;*/
+    position: relative;
+    padding-left: 3rem;
+}
+
+.code-block-content.line-numbers .line::before {
+    content: attr(data-line);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2.5rem;
+    text-align: center;
+    color: rgba(0, 0, 0, 0.3);
+    user-select: none;
+    pointer-events: none;
+    line-height: 0.8;
+    font-family:
+        var(--font-code) var(--font-mono) "JetBrains Mono",
+        monospace;
+}
+
+html.dark .code-block-content.line-numbers .line::before {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+html.dark .shiki,
+html.dark .shiki span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
+}
