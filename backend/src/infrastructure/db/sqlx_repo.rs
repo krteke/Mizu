@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
-use sqlx::{Acquire, Postgres, Transaction};
+use sqlx::{Acquire, Postgres, Transaction, types::Uuid};
 
 use crate::{
     domain::{
@@ -88,84 +88,6 @@ impl SqlxArticleRepository {
 
 #[async_trait]
 impl ArticleRepository for SqlxArticleRepository {
-    /// Save article(s)
-    ///
-    /// This method persists article(s) to the database.
-    ///
-    /// # Arguments
-    ///
-    /// * `articles` - The article entities to save
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - Articles was saved successfully
-    /// * `Err(SomeError)` - An error occurred during the save operation
-    ///
-    async fn save(&self, articles: &[Article]) -> Result<()> {
-        todo!()
-    }
-
-    async fn update(&self, articles: &[Article]) -> Result<()> {
-        todo!()
-    }
-
-    /// Delete an article by its file path
-    ///
-    /// This method removes an article from the database using its file path
-    /// as the identifier. The implementation may need to extract the article ID
-    /// from the path or use a path-to-ID mapping.
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The file path associated with the article to delete
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - Article was deleted successfully
-    /// * `Err(SomeError)` - Database error occurred during deletion
-    ///
-    /// # Implementation Note
-    ///
-    /// This method is currently marked as `todo!()` and needs to be implemented
-    /// with logic to map file paths to article IDs or use paths directly.
-    async fn delete_by_path(&self, path: &str) -> Result<()> {
-        todo!()
-    }
-
-    async fn update_by_id(&self, articles: &[Article]) -> Result<()> {
-        todo!()
-    }
-
-    /// Find an article by its unique identifier
-    ///
-    /// Queries the database for an article with the given ID. Returns `None`
-    /// if no article is found, rather than an error, allowing callers to
-    /// distinguish between "not found" and "database error" cases.
-    ///
-    /// # Arguments
-    ///
-    /// * `id` - The unique identifier of the article
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Some(Article))` - Article was found and returned
-    /// * `Ok(None)` - No article exists with the given ID
-    /// * `Err(SomeError)` - Database query failed
-    ///
-    /// # SQL Query
-    ///
-    /// ```sql
-    /// SELECT * FROM articles WHERE id = $1
-    /// ```
-    async fn find_optional_by_id(&self, id: &str) -> Result<Option<Article>> {
-        let article: Option<Article> = sqlx::query_as("SELECT * FROM articles WHERE id = $1")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await?;
-
-        Ok(article)
-    }
-
     /// Retrieve a paginated list of articles filtered by category
     ///
     /// Fetches articles belonging to a specific category with pagination support.
@@ -291,13 +213,14 @@ impl ArticleRepository for SqlxArticleRepository {
         Ok(db_items)
     }
 
-    async fn find_optional_by_file_path(&self, path: &str) -> Result<Option<Article>> {
-        todo!()
-    }
+    async fn get_by_paths(&self, paths: &[String]) -> Result<HashSet<String>> {
+        let results = sqlx::query!("SELECT id FROM articles WHERE path = ANY($1)", paths)
+            .fetch_all(&self.pool)
+            .await?;
 
-    // HashMap<id, path>
-    async fn get_by_paths(&self, paths: &HashSet<&str>) -> Result<HashSet<String>> {
-        todo!()
+        let id_set: HashSet<String> = results.into_iter().map(|row| row.id.to_string()).collect();
+
+        Ok(id_set)
     }
 
     async fn begin_transaction(&self) -> Result<TransactionGuard> {
@@ -315,16 +238,17 @@ struct SqlxTransaction {
 
 #[async_trait]
 impl TransactionOps for SqlxTransaction {
-    async fn insert_batch(&mut self, articles: &[Article]) -> Result<()> {
+    async fn upsert_batch(&mut self, articles: &[Article]) -> Result<()> {
         if articles.is_empty() {
             return Ok(());
         }
 
         let mut query = sqlx::QueryBuilder::new(
-            "INSERT INTO articles (id, title, tags, category, summary, content, status, created_at, updated_at) ",
+            "INSERT INTO articles (id, path, title, tags, category, summary, content, status, created_at, updated_at) ",
         );
         query.push_values(articles, |mut b, article| {
             b.push_bind(&article.id);
+            b.push_bind(&article.path);
             b.push_bind(&article.title);
             b.push_bind(&article.tags);
             b.push_bind(&article.category);
@@ -337,12 +261,12 @@ impl TransactionOps for SqlxTransaction {
         query.push(
             " ON CONFLICT (id) DO UPDATE SET \
                     title = EXCLUDED.title, \
+                    path = EXCLUDED.path, \
                     tags = EXCLUDED.tags, \
                     category = EXCLUDED.category, \
                     summary = EXCLUDED.summary, \
                     content = EXCLUDED.content, \
                     status = EXCLUDED.status, \
-                    created_at = EXCLUDED.created_at, \
                     updated_at = EXCLUDED.updated_at",
         );
         query.build().execute(self.tx.acquire().await?).await?;
@@ -355,10 +279,12 @@ impl TransactionOps for SqlxTransaction {
             return Ok(());
         }
 
-        let del_id: Vec<&str> = id.iter().map(|p| p.as_str()).collect();
+        let del_id: Vec<Uuid> = id
+            .into_iter()
+            .filter_map(|p| Uuid::parse_str(&p).ok())
+            .collect();
 
-        sqlx::query("UPDATE articles SET deleted_at = NOW() WHERE id = ANY($1)")
-            .bind(del_id)
+        sqlx::query!("DELETE FROM articles WHERE id = ANY($1)", &del_id)
             .execute(self.tx.acquire().await?)
             .await?;
 

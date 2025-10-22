@@ -125,7 +125,6 @@ pub async fn github_webhook(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     // TODO: Add integration tests for webhook handler
     // - Test signature verification with valid and invalid signatures

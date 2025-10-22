@@ -1,9 +1,5 @@
 use async_trait::async_trait;
-use meilisearch_sdk::{
-    client::Client,
-    key::Key,
-    search::{SearchResults, Selectors},
-};
+use meilisearch_sdk::{client::Client, key::Key, search::Selectors};
 
 use crate::{
     config::Config,
@@ -257,59 +253,6 @@ impl MeiliSearchService {
 
         // Initialize client with master key for full administrative access
         Ok(Client::new(meili_search_url, Some(key))?)
-    }
-
-    /// Execute a search query and return raw results
-    ///
-    /// This method performs a full-text search with highlighting and content
-    /// cropping. It's a lower-level method that returns raw SearchResults
-    /// from Meilisearch.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - Name of the index to search
-    /// * `page_limit` - Maximum number of results to return
-    /// * `params` - Search query string
-    /// * `offset` - Number of results to skip (for pagination)
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(SearchResults<Article>)` - Raw search results from Meilisearch
-    /// * `Err(SomeError)` - Search operation failed
-    ///
-    /// # Features
-    ///
-    /// - **Highlighting**: Matching terms are wrapped in `<span class="highlight">`
-    /// - **Cropping**: Summary and content are truncated around matches
-    /// - **Pagination**: Supports offset and limit for pagination
-    ///
-    /// # Note
-    ///
-    /// This is an internal helper method. Most code should use the
-    /// `SearchService::search` trait method instead.
-    pub async fn get_search_result(
-        &self,
-        index: &str,
-        page_limit: usize,
-        params: &str,
-        offset: usize,
-    ) -> Result<SearchResults<Article>> {
-        let search_index = &self.search_client.index(index);
-
-        // Build and execute the search query with highlighting and cropping
-        let search_result = search_index
-            .search()
-            .with_query(params) // Set the search query string
-            .with_offset(offset) // Set pagination offset
-            .with_limit(page_limit) // Set maximum number of results
-            .with_attributes_to_highlight(Selectors::Some(&["title", "summary", "content"])) // Fields to highlight
-            .with_highlight_pre_tag("<span class=\"highlight\">") // HTML tag before highlighted text
-            .with_highlight_post_tag("</span>") // HTML tag after highlighted text
-            .with_attributes_to_crop(Selectors::Some(&[("summary", None), ("content", None)])) // Fields to truncate
-            .execute::<Article>() // Execute search and parse results as Article entities
-            .await?;
-
-        Ok(search_result)
     }
 }
 

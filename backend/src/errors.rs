@@ -338,14 +338,8 @@ impl IntoResponse for SomeError {
             ),
 
             #[cfg(feature = "webhook")]
-            SomeError::Decode(DecodeError::DecodeBase64(_)) => (
-                StatusCode::BAD_REQUEST,
-                "INVALID_ENCODING",
-                "Invalid encoding",
-            ),
-
-            #[cfg(feature = "webhook")]
-            SomeError::Decode(DecodeError::DecodeUtf8(_)) => (
+            SomeError::Decode(DecodeError::DecodeBase64(_))
+            | SomeError::Decode(DecodeError::DecodeUtf8(_)) => (
                 StatusCode::BAD_REQUEST,
                 "INVALID_ENCODING",
                 "Invalid encoding",

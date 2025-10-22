@@ -15,7 +15,7 @@ use crate::errors::{Result, WebHooksError};
 /// # Fields
 ///
 /// * `file_path` - Relative path to the file within the repository
-/// * `status` - Change status: "added", "modified", or "removed"
+/// * `timestamp` - Timestamp of the file change
 /// * `row_url` - Optional URL to view the file (currently unused)
 ///
 /// # Example
@@ -25,7 +25,7 @@ use crate::errors::{Result, WebHooksError};
 ///
 /// let change = FileChange {
 ///     file_path: "posts/my-article.md".to_string(),
-///     status: "added".to_string(),
+///     timestamp: Utc::now(),
 ///     row_url: None,
 /// };
 /// ```
@@ -34,85 +34,11 @@ pub struct FileChange {
     /// Path to the file within the repository (e.g., "posts/article.md")
     pub file_path: String,
 
-    /// Status of the change: "added", "modified", or "removed"
-    pub status: String,
-
     pub timestamp: DateTime<Utc>,
 
     /// Optional URL to view the file in the repository
     /// Note: Currently not populated, reserved for future use
     pub row_url: Option<String>,
-}
-
-/// GitHub push event payload structure
-///
-/// Represents the data sent by GitHub when a push event occurs.
-/// This is a simplified version focusing on the fields we need
-/// for article processing.
-///
-/// # Note
-///
-/// This struct is currently defined but not actively used, as we rely on
-/// octocrab's built-in `WebhookEvent` parsing. It's kept for potential
-/// future custom parsing needs.
-#[derive(Debug, Deserialize)]
-pub struct PushEvent {
-    /// List of commits in this push event
-    pub commits: Option<Vec<CommitInfo>>,
-
-    /// Repository information
-    pub repository: RepositoryInfo,
-
-    /// User who triggered the push
-    pub sender: OwnerInfo,
-}
-
-/// Information about a single commit in a push event
-///
-/// Contains details about files changed in a specific commit,
-/// including which files were added, removed, or modified.
-#[derive(Debug, Deserialize)]
-pub struct CommitInfo {
-    /// Commit SHA hash
-    pub id: String,
-
-    /// Commit message
-    pub message: String,
-
-    /// List of file paths that were added in this commit
-    pub added: Vec<String>,
-
-    /// List of file paths that were removed in this commit
-    pub removed: Vec<String>,
-
-    /// List of file paths that were modified in this commit
-    pub modified: Vec<String>,
-}
-
-/// Repository information from webhook payload
-///
-/// Contains identifying information about the repository
-/// that triggered the webhook event.
-#[derive(Debug, Deserialize)]
-pub struct RepositoryInfo {
-    /// Short repository name (e.g., "my-repo")
-    pub name: String,
-
-    /// Full repository name including owner (e.g., "owner/my-repo")
-    pub full_name: String,
-
-    /// Repository owner information
-    pub owner: OwnerInfo,
-}
-
-/// Owner/user information from webhook payload
-///
-/// Represents a GitHub user or organization that owns a repository
-/// or triggered an event.
-#[derive(Debug, Deserialize)]
-pub struct OwnerInfo {
-    /// GitHub username or organization name
-    pub login: String,
 }
 
 /// Trait for extracting information from GitHub webhook events
@@ -253,7 +179,6 @@ impl WebhookHandler for WebhookEvent {
                     for file in &commit.added {
                         added_files.push(FileChange {
                             file_path: file.clone(),
-                            status: "added".to_string(),
                             timestamp: commit.timestamp,
                             row_url: None,
                         });
@@ -263,7 +188,6 @@ impl WebhookHandler for WebhookEvent {
                     for file in &commit.removed {
                         removed_files.push(FileChange {
                             file_path: file.clone(),
-                            status: "removed".to_string(),
                             timestamp: commit.timestamp,
                             row_url: None,
                         });
@@ -273,7 +197,6 @@ impl WebhookHandler for WebhookEvent {
                     for file in &commit.modified {
                         modified_files.push(FileChange {
                             file_path: file.clone(),
-                            status: "modified".to_string(),
                             timestamp: commit.timestamp,
                             row_url: None,
                         });
@@ -346,13 +269,11 @@ mod tests {
     fn test_file_change_creation() {
         let change = FileChange {
             file_path: "test.md".to_string(),
-            status: "added".to_string(),
             timestamp: Utc::now(),
             row_url: None,
         };
 
         assert_eq!(change.file_path, "test.md");
-        assert_eq!(change.status, "added");
         assert!(change.row_url.is_none());
     }
 
@@ -360,7 +281,6 @@ mod tests {
     fn test_file_change_serialization() {
         let change = FileChange {
             file_path: "test.md".to_string(),
-            status: "modified".to_string(),
             timestamp: Utc::now(),
             row_url: Some("https://github.com/...".to_string()),
         };

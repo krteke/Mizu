@@ -152,6 +152,8 @@ impl ArticleService {
     /// * `Err(SomeError)` - Error occurred during file processing
     #[cfg(feature = "webhook")]
     async fn process_push_event(&self, event: &WebhookEvent) -> Result<()> {
+        use crate::domain::search::DEFAULT_SEARCH_INDEX;
+
         let repo_name = event.get_repository_name()?;
         let owner = event.get_repository_owner()?;
 
@@ -163,18 +165,23 @@ impl ArticleService {
             .process_modified_event(&owner, &repo_name, &modified_files)
             .await?;
 
-        // self.process_modified_files(&modified_articles).await?;
-
         added_files.retain(|f| self.is_valid_file(&f.file_path));
         let (added, modified, removed) = self
             .process_added_and_removed_event(&owner, &repo_name, &added_files, &removed_files)
             .await?;
 
-        let modified_articles: Vec<Article> = modified_articles
-            .iter()
-            .chain(modified.iter())
-            .cloned()
+        let upsert_articles: Vec<Article> = modified_articles
+            .into_iter()
+            .chain(modified)
+            .chain(added)
             .collect();
+
+        let mut tx = self.db_repo.begin_transaction().await?;
+        self.process_upsert_files(&upsert_articles, &mut tx).await?;
+        self.process_deleted_files(&removed, &mut tx).await?;
+        tx.commit().await?;
+
+        self.create_index(DEFAULT_SEARCH_INDEX).await?;
 
         Ok(())
     }
@@ -213,12 +220,11 @@ impl ArticleService {
         added: &[FileChange],
         removed: &[FileChange],
     ) -> Result<(Vec<Article>, Vec<Article>, HashSet<String>)> {
-        use std::collections::HashSet;
         use time::OffsetDateTime;
 
         use crate::infrastructure::time_utils::chrono_to_offset;
 
-        let removed_paths: HashSet<&str> = removed.iter().map(|f| f.file_path.as_str()).collect();
+        let removed_paths: Vec<String> = removed.into_iter().map(|f| f.file_path.clone()).collect();
         let mut removed_files_id = self.db_repo.get_by_paths(&removed_paths).await?;
 
         let mut add = Vec::new();
@@ -266,14 +272,6 @@ impl ArticleService {
             }
         }
 
-        // self.process_modified_files(&modify).await?;
-
-        // let mut tx = self.db_repo.begin_transaction().await?;
-        // self.process_added_files(&add, &mut tx).await?;
-        // self.process_deleted_files(&removed_files_id, &mut tx)
-        //     .await?;
-        // tx.commit().await?;
-
         Ok((add, modify, removed_files_id))
     }
 
@@ -297,7 +295,17 @@ impl ArticleService {
 
         for (timestamp, content, file_path) in contents {
             if let Ok(content) = content {
-                let (article_info, content) = self.extract_article(&content)?;
+                let (article_info, content) = match self.extract_article(&content) {
+                    Ok((article_info, content)) => (article_info, content),
+                    Err(err) => {
+                        tracing::warn!(
+                            "Failed to extract article from file {}: {}",
+                            file_path,
+                            err
+                        );
+                        continue;
+                    }
+                };
 
                 let offset_timestamp = chrono_to_offset(timestamp).unwrap_or_else(|_| {
                     tracing::warn!("Failed to parse timestamp");
@@ -318,20 +326,13 @@ impl ArticleService {
     }
 
     #[cfg(feature = "webhook")]
-    pub async fn process_modified_files(&self, modified: &[Article]) -> Result<()> {
-        self.db_repo.update_by_id(&modified).await?;
-
-        Ok(())
-    }
-
-    #[cfg(feature = "webhook")]
-    pub async fn process_added_files(
+    pub async fn process_upsert_files(
         &self,
-        added: &[Article],
+        upsert_articles: &[Article],
         tx: &mut TransactionGuard,
     ) -> Result<()> {
-        if !added.is_empty() {
-            tx.insert_batch(added).await?;
+        if !upsert_articles.is_empty() {
+            tx.upsert_batch(upsert_articles).await?;
         }
 
         Ok(())
@@ -359,30 +360,6 @@ impl ArticleService {
             .ok_or_else(|| anyhow::anyhow!("Extract article info failed."))?;
 
         Ok((info, front_matter.content))
-    }
-
-    /// Check if an article ID is available for use
-    ///
-    /// Validates that the given ID is not already in use by an existing article.
-    /// This is useful for preventing duplicate IDs when creating new articles.
-    ///
-    /// # Arguments
-    ///
-    /// * `id` - The article ID to check
-    ///
-    /// # Returns
-    ///
-    /// * `true` - ID is available (not in use)
-    /// * `false` - ID is already taken by an existing article
-    ///
-    /// Note: Returns `true` if an error occurs during the check, assuming the ID
-    /// is available to avoid blocking article creation.
-    pub async fn is_valid_id(&self, id: &str) -> bool {
-        match self.db_repo.find_optional_by_id(id).await {
-            Ok(Some(_)) => false, // ID exists, not valid for new article
-            Ok(None) => true,     // ID doesn't exist, valid for new article
-            Err(_) => true,       // Error occurred, assume valid to avoid blocking
-        }
     }
 
     /// Retrieve paginated list of articles by category
@@ -434,10 +411,6 @@ impl ArticleService {
     /// * `Err(SomeError)` - Other error occurred during retrieval
     pub async fn get_article_by_id(&self, id: &str) -> Result<Article> {
         self.db_repo.get_post_by_id(id).await
-    }
-
-    pub async fn get_article_by_path(&self, path: &str) -> Result<Option<Article>> {
-        self.db_repo.find_optional_by_file_path(path).await
     }
 
     /// Perform full-text search on articles
@@ -504,11 +477,13 @@ impl ArticleService {
     /// ```rust
     /// service.create_index("articles", &["title", "summary", "content"]).await?;
     /// ```
-    pub async fn create_index(&self, index: &str, searchable_attributes: &[&str]) -> Result<()> {
+    pub async fn create_index(&self, index: &str) -> Result<()> {
+        let searchable_attributes = ["title", "content", "summary"];
+
         // Create the index with specified searchable attributes
         let client = self
             .search_service
-            .create_index_client(index, searchable_attributes)
+            .create_index_client(index, &searchable_attributes)
             .await?;
 
         // Fetch all articles from database

@@ -4,6 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{domain::articles::PostCategory, errors::Result};
 
+/// Default name of the search index in Meilisearch
+///
+/// This is the index name used for article full-text search operations.
+pub const DEFAULT_SEARCH_INDEX: &str = "articles";
+
 /// Search result item containing an article match with optional highlighting
 ///
 /// This struct represents a single search result returned by the search service.

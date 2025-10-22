@@ -46,82 +46,6 @@ use crate::{domain::articles::Article, errors::Result, interfaces::http::dtos::P
 /// ```
 #[async_trait]
 pub trait ArticleRepository: Send + Sync {
-    /// Find an article by its unique identifier
-    ///
-    /// This method searches for an article with the given ID and returns
-    /// `Some(Article)` if found, or `None` if no article exists with that ID.
-    ///
-    /// # Arguments
-    ///
-    /// * `id` - The unique identifier of the article to find
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Some(Article))` - Article was found and returned
-    /// * `Ok(None)` - No article exists with the given ID
-    /// * `Err(SomeError)` - An error occurred during the database query
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// let article = repo.find_optional_by_id("article-123").await?;
-    /// match article {
-    ///     Some(a) => println!("Found: {}", a.title),
-    ///     None => println!("Article not found"),
-    /// }
-    /// ```
-    async fn find_optional_by_id(&self, id: &str) -> Result<Option<Article>>;
-
-    /// Save article(s)
-    ///
-    /// This method persists article(s) to the database.
-    ///
-    /// # Arguments
-    ///
-    /// * `articles` - The article entities to save
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - Articles was saved successfully
-    /// * `Err(SomeError)` - An error occurred during the save operation
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// let article = Article {
-    ///     id: "new-article".to_string(),
-    ///     title: "My Article".to_string(),
-    ///     // ... other fields
-    /// };
-    /// repo.save(&[article]).await?;
-    /// ```
-    async fn save(&self, articles: &[Article]) -> Result<()>;
-
-    async fn update(&self, articles: &[Article]) -> Result<()>;
-
-    async fn update_by_id(&self, articles: &[Article]) -> Result<()>;
-
-    /// Delete an article by its file path
-    ///
-    /// This method removes an article from the database using its file path
-    /// as the identifier. This is typically used when processing file deletion
-    /// events from webhooks.
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The file path associated with the article to delete
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - Article was deleted successfully (or didn't exist)
-    /// * `Err(SomeError)` - An error occurred during the delete operation
-    ///
-    /// # Note
-    ///
-    /// The implementation may choose to map the file path to an article ID
-    /// or use the path directly as an identifier.
-    async fn delete_by_path(&self, path: &str) -> Result<()>;
-
     /// Retrieve a paginated list of articles filtered by category
     ///
     /// This method fetches articles belonging to a specific category with
@@ -204,9 +128,7 @@ pub trait ArticleRepository: Send + Sync {
     /// ```
     async fn get_all(&self) -> Result<Vec<Article>>;
 
-    async fn find_optional_by_file_path(&self, path: &str) -> Result<Option<Article>>;
-
-    async fn get_by_paths(&self, paths: &HashSet<&str>) -> Result<HashSet<String>>;
+    async fn get_by_paths(&self, paths: &[String]) -> Result<HashSet<String>>;
 
     async fn begin_transaction(&self) -> Result<TransactionGuard>;
 }
@@ -216,8 +138,8 @@ pub struct TransactionGuard {
 }
 
 impl TransactionGuard {
-    pub async fn insert_batch(&mut self, articles: &[Article]) -> Result<()> {
-        self.inner.insert_batch(articles).await
+    pub async fn upsert_batch(&mut self, articles: &[Article]) -> Result<()> {
+        self.inner.upsert_batch(articles).await
     }
 
     pub async fn delete_batch(&mut self, paths: &HashSet<String>) -> Result<()> {
@@ -231,7 +153,7 @@ impl TransactionGuard {
 
 #[async_trait]
 pub trait TransactionOps: Send {
-    async fn insert_batch(&mut self, articles: &[Article]) -> Result<()>;
+    async fn upsert_batch(&mut self, articles: &[Article]) -> Result<()>;
     async fn delete_batch(&mut self, id: &HashSet<String>) -> Result<()>;
     async fn commit(self: Box<Self>) -> Result<()>;
 }

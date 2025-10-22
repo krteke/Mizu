@@ -160,7 +160,6 @@ pub async fn get_post_digital(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     // TODO: Add integration tests for article handlers
     // - Test pagination with different page sizes

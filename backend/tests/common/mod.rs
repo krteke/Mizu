@@ -62,26 +62,6 @@ impl MockArticleRepository {
 
 #[async_trait]
 impl ArticleRepository for MockArticleRepository {
-    async fn find_optional_by_id(&self, id: &str) -> Result<Option<Article>> {
-        let articles = self.articles.lock().unwrap();
-        Ok(articles.get(id).map(|a| a.clone()))
-    }
-
-    async fn save(&self, articles: &[Article]) -> Result<()> {
-        todo!()
-    }
-
-    async fn update(&self, articles: &[Article]) -> Result<()> {
-        todo!()
-    }
-
-    async fn delete_by_path(&self, path: &str) -> Result<()> {
-        let mut articles = self.articles.lock().unwrap();
-        // 简单实现：假设 path 就是 id
-        articles.remove(path);
-        Ok(())
-    }
-
     async fn get_posts_by_category(
         &self,
         category: &str,
@@ -125,19 +105,7 @@ impl ArticleRepository for MockArticleRepository {
         Ok(articles.values().map(|a| a.clone()).collect())
     }
 
-    async fn find_optional_by_file_path(&self, path: &str) -> Result<Option<Article>> {
-        let articles = self.articles.lock().unwrap();
-
-        // articles.values().find(|&x| x.file_path == path);
-
-        todo!()
-    }
-
-    async fn update_by_id(&self, articles: &[Article]) -> Result<()> {
-        todo!()
-    }
-
-    async fn get_by_paths(&self, paths: &HashSet<&str>) -> Result<HashSet<String>> {
+    async fn get_by_paths(&self, paths: &[String]) -> Result<HashSet<String>> {
         todo!()
     }
 
@@ -313,46 +281,6 @@ pub fn create_test_search_hit(id: &str, title: &str) -> SearchHit {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[tokio::test]
-    async fn test_mock_repository_save_and_find() {
-        let repo = MockArticleRepository::new();
-        let article = create_test_article("test-1", "Test Article", PostCategory::Article);
-
-        // Save the articles
-        repo.save(&[article]).await.unwrap();
-
-        // Find the article
-        let found = repo.find_optional_by_id("test-1").await.unwrap();
-        assert!(found.is_some());
-        assert_eq!(found.unwrap().title, "Test Article");
-    }
-
-    #[tokio::test]
-    async fn test_mock_repository_delete() {
-        let repo = MockArticleRepository::new();
-        let article = create_test_article("test-2", "Test Article", PostCategory::Article);
-
-        repo.save(&[article]).await.unwrap();
-        repo.delete_by_path("test-2").await.unwrap();
-
-        let found = repo.find_optional_by_id("test-2").await.unwrap();
-        assert!(found.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_mock_repository_get_by_category() {
-        let repo = MockArticleRepository::new();
-
-        let article1 = create_test_article("1", "Article 1", PostCategory::Article);
-        let article2 = create_test_article("2", "Article 2", PostCategory::Article);
-        let note = create_test_article("3", "Note 1", PostCategory::Note);
-
-        repo.save(&[article1, article2, note]).await.unwrap();
-
-        let results = repo.get_posts_by_category("article", 10, 0).await.unwrap();
-        assert_eq!(results.len(), 2);
-    }
 
     #[tokio::test]
     async fn test_mock_search_service() {

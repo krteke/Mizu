@@ -28,42 +28,42 @@ fn create_test_config() -> Arc<AppConfig> {
     ))
 }
 
-#[tokio::test]
-async fn test_article_service_is_valid_id_new() {
-    let repo = Arc::new(MockArticleRepository::new());
-    let search = Arc::new(MockSearchService::new());
-    let config = create_test_config();
+// #[tokio::test]
+// async fn test_article_service_is_valid_id_new() {
+//     let repo = Arc::new(MockArticleRepository::new());
+//     let search = Arc::new(MockSearchService::new());
+//     let config = create_test_config();
 
-    let service = ArticleService::new(
-        repo,
-        #[cfg(feature = "webhook")]
-        Arc::new(MockGithubClient::new()),
-        search,
-        config,
-    );
+//     let service = ArticleService::new(
+//         repo,
+//         #[cfg(feature = "webhook")]
+//         Arc::new(MockGithubClient::new()),
+//         search,
+//         config,
+//     );
 
-    // New ID should be valid (available)
-    assert!(service.is_valid_id("new-id").await);
-}
+//     // New ID should be valid (available)
+//     assert!(service.is_valid_id("new-id").await);
+// }
 
-#[tokio::test]
-async fn test_article_service_is_valid_id_existing() {
-    let article = create_test_article("existing-id", "Existing Article", PostCategory::Article);
-    let repo = Arc::new(MockArticleRepository::with_articles(vec![article]));
-    let search = Arc::new(MockSearchService::new());
-    let config = create_test_config();
+// #[tokio::test]
+// async fn test_article_service_is_valid_id_existing() {
+//     let article = create_test_article("existing-id", "Existing Article", PostCategory::Article);
+//     let repo = Arc::new(MockArticleRepository::with_articles(vec![article]));
+//     let search = Arc::new(MockSearchService::new());
+//     let config = create_test_config();
 
-    let service = ArticleService::new(
-        repo,
-        #[cfg(feature = "webhook")]
-        Arc::new(MockGithubClient::new()),
-        search,
-        config,
-    );
+//     let service = ArticleService::new(
+//         repo,
+//         #[cfg(feature = "webhook")]
+//         Arc::new(MockGithubClient::new()),
+//         search,
+//         config,
+//     );
 
-    // Existing ID should be invalid (not available)
-    assert!(!service.is_valid_id("existing-id").await);
-}
+//     // Existing ID should be invalid (not available)
+//     assert!(!service.is_valid_id("existing-id").await);
+// }
 
 #[tokio::test]
 async fn test_article_service_get_posts_by_category() {

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::{
     app_state::AppState,
+    domain::search::DEFAULT_SEARCH_INDEX,
     errors::Result,
     interfaces::http::dtos::{SearchParams, SearchResponse},
 };
@@ -16,11 +17,6 @@ use crate::{
 /// A smaller value (6) is used to provide a responsive user experience
 /// and reduce the initial load time.
 const PAGE_ITEMS: usize = 6;
-
-/// Default name of the search index in Meilisearch
-///
-/// This is the index name used for article full-text search operations.
-const DEFAULT_SEARCH_INDEX: &str = "articles";
 
 /// HTTP handler for full-text search on articles
 ///
@@ -103,56 +99,4 @@ pub async fn get_search_results(
         current_page,
         results,
     }))
-}
-
-/// Create search index and populate it with existing articles
-///
-/// This handler is used for initial setup or rebuilding the search index
-/// from scratch. It creates a new Meilisearch index with specified searchable
-/// attributes and imports all articles from the database.
-///
-/// # Request Format
-///
-/// ```text
-/// POST /search/index
-/// ```
-///
-/// # Arguments
-///
-/// * `State(state)` - Shared application state containing services
-///
-/// # Returns
-///
-/// * `Ok(())` - Index created and populated successfully
-/// * `Err(SomeError)` - Index creation or population failed
-///
-/// # Searchable Attributes
-///
-/// The following fields are configured as searchable:
-/// - `title` - Article title
-/// - `content` - Full article content
-/// - `summary` - Article summary/excerpt
-///
-/// # Warning
-///
-/// This operation can take significant time for large datasets as it:
-/// 1. Creates a new search index
-/// 2. Fetches all articles from the database
-/// 3. Imports all articles into the search index
-///
-/// # Example Request
-///
-/// ```bash
-/// curl -X POST "http://localhost:8124/api/search/index"
-/// ```
-pub async fn create_search_index(State(state): State<Arc<AppState>>) -> Result<()> {
-    // Define which article fields should be searchable
-    // These fields will be indexed and available for full-text search
-    let searchable_attributes = ["title", "content", "summary"];
-
-    // Create the index and import all articles from database
-    state
-        .article_service
-        .create_index(DEFAULT_SEARCH_INDEX, searchable_attributes.as_slice())
-        .await
 }
