@@ -38,6 +38,7 @@ async fn test_sqlx_repo_find_optional_by_id_exists() {
 
     let article = Article {
         id: "test-find-exists".to_string(),
+        path: "example-path".to_string(),
         title: "Test Find Exists".to_string(),
         tags: vec!["test".to_string()],
         category: PostCategory::Article,
@@ -46,7 +47,6 @@ async fn test_sqlx_repo_find_optional_by_id_exists() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     // Save the article
@@ -85,6 +85,7 @@ async fn test_sqlx_repo_get_by_category() {
     // 创建测试文章
     let article1 = Article {
         id: "test-category-1".to_string(),
+        path: "example-path".to_string(),
         title: "Article 1".to_string(),
         tags: vec!["rust".to_string()],
         category: PostCategory::Article,
@@ -93,11 +94,11 @@ async fn test_sqlx_repo_get_by_category() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     let article2 = Article {
         id: "test-category-2".to_string(),
+        path: "example-path".to_string(),
         title: "Article 2".to_string(),
         tags: vec!["web".to_string()],
         category: PostCategory::Article,
@@ -106,11 +107,11 @@ async fn test_sqlx_repo_get_by_category() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     let note = Article {
         id: "test-note-1".to_string(),
+        path: "example-path".to_string(),
         title: "Note 1".to_string(),
         tags: vec![],
         category: PostCategory::Note,
@@ -119,7 +120,6 @@ async fn test_sqlx_repo_get_by_category() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     repo.save(&[article1, article2, note]).await.unwrap();
@@ -151,6 +151,7 @@ async fn test_sqlx_repo_get_by_category_pagination() {
     for i in 0..5 {
         let article = Article {
             id: format!("test-pagination-{}", i),
+            path: format!("example-path-{}", i),
             title: format!("Pagination Test {}", i),
             tags: vec![],
             category: PostCategory::Think,
@@ -159,7 +160,6 @@ async fn test_sqlx_repo_get_by_category_pagination() {
             status: "published".to_string(),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
-            deleted_at: None,
         };
         repo.save(&[article]).await.unwrap();
     }
@@ -186,6 +186,7 @@ async fn test_sqlx_repo_get_by_id() {
 
     let article = Article {
         id: "test-get-by-id".to_string(),
+        path: "example-path".to_string(),
         title: "Get By ID Test".to_string(),
         tags: vec!["rust".to_string(), "testing".to_string()],
         category: PostCategory::Note,
@@ -194,7 +195,6 @@ async fn test_sqlx_repo_get_by_id() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     repo.save(&[article]).await.unwrap();
@@ -228,6 +228,7 @@ async fn test_sqlx_repo_get_all() {
     // Create test article
     let article = Article {
         id: "test-get-all".to_string(),
+        path: "example-path".to_string(),
         title: "Get All Test".to_string(),
         tags: vec![],
         category: PostCategory::Talk,
@@ -236,7 +237,6 @@ async fn test_sqlx_repo_get_all() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     repo.save(&[article]).await.unwrap();
@@ -260,6 +260,7 @@ async fn test_sqlx_repo_delete_by_path() {
 
     let article = Article {
         id: "test-delete".to_string(),
+        path: "example-path".to_string(),
         title: "Delete Test".to_string(),
         tags: vec![],
         category: PostCategory::Pictures,
@@ -268,7 +269,6 @@ async fn test_sqlx_repo_delete_by_path() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     // Save article
@@ -295,6 +295,7 @@ async fn test_sqlx_repo_save_updates_existing() {
     // Create original article
     let mut article = Article {
         id: "test-update".to_string(),
+        path: "example-path".to_string(),
         title: "Original Title".to_string(),
         tags: vec!["original".to_string()],
         category: PostCategory::Article,
@@ -303,7 +304,6 @@ async fn test_sqlx_repo_save_updates_existing() {
         status: "draft".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     repo.save(&[article.clone()]).await.unwrap();
@@ -342,6 +342,7 @@ async fn test_sqlx_repo_multiple_categories() {
     for (id, category) in &categories {
         let article = Article {
             id: id.to_string(),
+            path: "example-path".to_string(),
             title: format!("Test {}", id),
             tags: vec![],
             category: category.clone(),
@@ -350,7 +351,6 @@ async fn test_sqlx_repo_multiple_categories() {
             status: "published".to_string(),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
-            deleted_at: None,
         };
         repo.save(&[article]).await.unwrap();
     }

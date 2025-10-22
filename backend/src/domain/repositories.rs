@@ -99,7 +99,7 @@ pub trait ArticleRepository: Send + Sync {
 
     async fn update(&self, articles: &[Article]) -> Result<()>;
 
-    async fn update_by_path(&self, article_with_path: &[(Article, String)]) -> Result<()>;
+    async fn update_by_id(&self, articles: &[Article]) -> Result<()>;
 
     /// Delete an article by its file path
     ///

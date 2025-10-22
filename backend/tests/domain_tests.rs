@@ -71,6 +71,7 @@ fn test_post_category_serialization() {
 fn test_article_creation() {
     let article = Article {
         id: "test-123".to_string(),
+        path: "example-path".to_string(),
         title: "Test Article".to_string(),
         tags: vec!["rust".to_string(), "testing".to_string()],
         category: PostCategory::Article,
@@ -79,7 +80,6 @@ fn test_article_creation() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     assert_eq!(article.id, "test-123");
@@ -94,6 +94,7 @@ fn test_article_serialization() {
 
     let article = Article {
         id: "test-456".to_string(),
+        path: "example-path".to_string(),
         title: "Serialization Test".to_string(),
         tags: vec!["test".to_string()],
         category: PostCategory::Note,
@@ -102,7 +103,6 @@ fn test_article_serialization() {
         status: "draft".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     // Test serialization
@@ -121,6 +121,7 @@ fn test_article_serialization() {
 fn test_article_with_empty_tags() {
     let article = Article {
         id: "no-tags".to_string(),
+        path: "example-path".to_string(),
         title: "Article Without Tags".to_string(),
         tags: vec![],
         category: PostCategory::Think,
@@ -129,7 +130,6 @@ fn test_article_with_empty_tags() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     assert_eq!(article.tags.len(), 0);
@@ -147,6 +147,7 @@ fn test_article_with_multiple_tags() {
 
     let article = Article {
         id: "multi-tags".to_string(),
+        path: "example-path".to_string(),
         title: "Article With Multiple Tags".to_string(),
         tags: tags.clone(),
         category: PostCategory::Article,
@@ -155,7 +156,6 @@ fn test_article_with_multiple_tags() {
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     };
 
     assert_eq!(article.tags.len(), 4);
@@ -169,6 +169,7 @@ fn test_article_status_values() {
     for status in statuses {
         let article = Article {
             id: format!("article-{}", status),
+            path: "example-path".to_string(),
             title: "Test".to_string(),
             tags: vec![],
             category: PostCategory::Article,
@@ -177,7 +178,6 @@ fn test_article_status_values() {
             status: status.to_string(),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
-            deleted_at: None,
         };
 
         assert_eq!(article.status, status);

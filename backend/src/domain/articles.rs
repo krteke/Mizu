@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use std::str::FromStr;
 use time::OffsetDateTime;
-use uuid::Uuid;
 
 /// Article domain entity representing a blog post or article
 ///
@@ -24,6 +23,8 @@ use uuid::Uuid;
 pub struct Article {
     /// Unique identifier for the article
     pub id: String,
+
+    pub path: String,
 
     /// Article title
     pub title: String,
@@ -48,9 +49,6 @@ pub struct Article {
 
     /// Timestamp when the article was last updated
     pub updated_at: OffsetDateTime,
-
-    /// Timestamp when the article was deleted
-    pub deleted_at: Option<OffsetDateTime>,
 }
 
 /// Front matter structure for articles loaded from markdown files

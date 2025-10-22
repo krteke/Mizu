@@ -132,7 +132,7 @@ impl ArticleRepository for SqlxArticleRepository {
         todo!()
     }
 
-    async fn update_by_path(&self, article_with_path: &[(Article, String)]) -> Result<()> {
+    async fn update_by_id(&self, articles: &[Article]) -> Result<()> {
         todo!()
     }
 

@@ -6,9 +6,13 @@ use std::sync::Arc;
 use gray_matter::{Matter, engine::YAML};
 #[cfg(feature = "webhook")]
 use octocrab::models::webhook_events::{WebhookEvent, WebhookEventType};
+#[cfg(feature = "webhook")]
+use time::OffsetDateTime;
 
 #[cfg(feature = "webhook")]
 use crate::domain::articles::ArticleFrontMatter;
+#[cfg(feature = "webhook")]
+use crate::domain::repositories::TransactionGuard;
 #[cfg(feature = "webhook")]
 use crate::infrastructure::github::webhook::FileChange;
 #[cfg(feature = "webhook")]
@@ -155,12 +159,22 @@ impl ArticleService {
 
         let (mut added_files, removed_files, modified_files) = event.get_push_file_changes();
 
-        self.process_modified_files(&owner, &repo_name, &modified_files)
+        let modified_articles = self
+            .process_modified_event(&owner, &repo_name, &modified_files)
             .await?;
 
+        // self.process_modified_files(&modified_articles).await?;
+
         added_files.retain(|f| self.is_valid_file(&f.file_path));
-        self.process_added_and_removed_event(&owner, &repo_name, &added_files, &removed_files)
+        let (added, modified, removed) = self
+            .process_added_and_removed_event(&owner, &repo_name, &added_files, &removed_files)
             .await?;
+
+        let modified_articles: Vec<Article> = modified_articles
+            .iter()
+            .chain(modified.iter())
+            .cloned()
+            .collect();
 
         Ok(())
     }
@@ -198,7 +212,7 @@ impl ArticleService {
         repo: &str,
         added: &[FileChange],
         removed: &[FileChange],
-    ) -> Result<()> {
+    ) -> Result<(Vec<Article>, Vec<Article>, HashSet<String>)> {
         use std::collections::HashSet;
         use time::OffsetDateTime;
 
@@ -221,26 +235,23 @@ impl ArticleService {
                         });
 
                         if removed_files_id.contains(&info.id) {
-                            modify.push(FileChange {
-                                file_path,
-                                status: "modified".to_string(),
-                                timestamp: timestamp,
-                                row_url: None,
-                            });
                             removed_files_id.remove(&info.id);
+
+                            modify.push(build_article(
+                                info,
+                                file_path,
+                                content,
+                                offset_timestamp,
+                                offset_timestamp,
+                            ));
                         } else {
-                            add.push(Article {
-                                id: info.id,
-                                title: info.title,
-                                tags: info.tags,
-                                status: info.status,
-                                summary: info.summary,
-                                category: info.category,
-                                content: content,
-                                created_at: offset_timestamp,
-                                updated_at: offset_timestamp,
-                                deleted_at: None,
-                            });
+                            add.push(build_article(
+                                info,
+                                file_path,
+                                content,
+                                offset_timestamp,
+                                offset_timestamp,
+                            ));
                         }
                     }
 
@@ -255,47 +266,24 @@ impl ArticleService {
             }
         }
 
-        self.process_modified_files(&owner, &repo, &modify).await?;
+        // self.process_modified_files(&modify).await?;
 
-        let mut tx = self.db_repo.begin_transaction().await?;
-        if !add.is_empty() {
-            tx.insert_batch(&add).await?;
-        }
-        if !removed_files_id.is_empty() {
-            tx.delete_batch(&removed_files_id).await?;
-        }
-        tx.commit().await?;
+        // let mut tx = self.db_repo.begin_transaction().await?;
+        // self.process_added_files(&add, &mut tx).await?;
+        // self.process_deleted_files(&removed_files_id, &mut tx)
+        //     .await?;
+        // tx.commit().await?;
 
-        todo!()
+        Ok((add, modify, removed_files_id))
     }
 
-    /// Process a modified file from GitHub
-    ///
-    /// Fetches the updated file content from GitHub API, parses the front matter,
-    /// and updates the existing article in the database and search index.
-    ///
-    /// The processing logic is similar to adding a new file, but updates an
-    /// existing article instead of creating a new one.
-    ///
-    /// # Arguments
-    ///
-    /// * `owner` - Repository owner username
-    /// * `repo` - Repository name
-    /// * `file_path` - Path to the modified file within the repository
-    /// * `timestamp` - Timestamp of the modification
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - File processed and article updated successfully
-    /// * `Err(SomeError)` - Error occurred during fetching, parsing, or updating
-    ///
     #[cfg(feature = "webhook")]
-    pub async fn process_modified_files(
+    pub async fn process_modified_event(
         &self,
         owner: &str,
         repo: &str,
         modified: &[FileChange],
-    ) -> Result<()> {
+    ) -> Result<Vec<Article>> {
         use time::OffsetDateTime;
 
         use crate::infrastructure::time_utils::chrono_to_offset;
@@ -316,24 +304,48 @@ impl ArticleService {
                     OffsetDateTime::now_utc()
                 });
 
-                let article = Article {
-                    id: article_info.id,
-                    title: article_info.title,
-                    category: article_info.category,
-                    content: content,
-                    status: article_info.status,
-                    summary: article_info.summary,
-                    tags: article_info.tags,
-                    created_at: OffsetDateTime::now_utc(),
-                    updated_at: offset_timestamp,
-                    deleted_at: None,
-                };
-
-                articles.push((article, file_path));
+                articles.push(build_article(
+                    article_info,
+                    file_path,
+                    content,
+                    offset_timestamp,
+                    offset_timestamp,
+                ));
             }
         }
 
-        self.db_repo.update_by_path(&articles).await?;
+        Ok(articles)
+    }
+
+    #[cfg(feature = "webhook")]
+    pub async fn process_modified_files(&self, modified: &[Article]) -> Result<()> {
+        self.db_repo.update_by_id(&modified).await?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "webhook")]
+    pub async fn process_added_files(
+        &self,
+        added: &[Article],
+        tx: &mut TransactionGuard,
+    ) -> Result<()> {
+        if !added.is_empty() {
+            tx.insert_batch(added).await?;
+        }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "webhook")]
+    pub async fn process_deleted_files(
+        &self,
+        deleted: &HashSet<String>,
+        tx: &mut TransactionGuard,
+    ) -> Result<()> {
+        if !deleted.is_empty() {
+            tx.delete_batch(deleted).await?;
+        }
 
         Ok(())
     }
@@ -511,5 +523,27 @@ impl ArticleService {
             .await?;
 
         Ok(())
+    }
+}
+
+#[cfg(feature = "webhook")]
+fn build_article(
+    front_matter: ArticleFrontMatter,
+    path: String,
+    content: String,
+    create_at: OffsetDateTime,
+    update_at: OffsetDateTime,
+) -> Article {
+    Article {
+        id: front_matter.id,
+        path: path,
+        title: front_matter.title,
+        tags: front_matter.tags,
+        category: front_matter.category,
+        summary: front_matter.summary,
+        content: content,
+        status: front_matter.status,
+        created_at: create_at,
+        updated_at: update_at,
     }
 }

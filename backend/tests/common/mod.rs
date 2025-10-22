@@ -133,7 +133,7 @@ impl ArticleRepository for MockArticleRepository {
         todo!()
     }
 
-    async fn update_by_path(&self, article_with_path: &[(Article, String)]) -> Result<()> {
+    async fn update_by_id(&self, articles: &[Article]) -> Result<()> {
         todo!()
     }
 
@@ -265,6 +265,7 @@ impl GithubClient for MockGithubClient {
 pub fn create_test_article(id: &str, title: &str, category: PostCategory) -> Article {
     Article {
         id: id.to_string(),
+        path: "example-path".to_string(),
         title: title.to_string(),
         tags: vec!["test".to_string(), "rust".to_string()],
         category,
@@ -273,7 +274,6 @@ pub fn create_test_article(id: &str, title: &str, category: PostCategory) -> Art
         status: "published".to_string(),
         created_at: OffsetDateTime::now_utc(),
         updated_at: OffsetDateTime::now_utc(),
-        deleted_at: None,
     }
 }
 
