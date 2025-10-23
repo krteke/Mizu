@@ -1,14 +1,12 @@
-"use client";
-
-import { motion } from "framer-motion";
-import Image from "next/image";
+import { motion, Variants } from "framer-motion";
 import SocialButton from "./SocialButton";
 import ScrollDownArrow from "./ScrollDownArrow";
 import MagneticElement from "./MagneticElement";
+import HolographicAvatar from "./HolographicAvatar";
 
 export default function HeroSection() {
   // 文字动画变体
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -19,7 +17,7 @@ export default function HeroSection() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
@@ -32,13 +30,14 @@ export default function HeroSection() {
   };
 
   // 头像动画
-  const avatarVariants = {
+  const avatarVariants: Variants = {
     hidden: { opacity: 0, scale: 0.8 },
     visible: {
       opacity: 1,
       scale: 1,
       transition: {
         duration: 0.8,
+        delay: 0.5,
         ease: "easeOut",
       },
     },
@@ -161,7 +160,7 @@ export default function HeroSection() {
             animate="visible"
           >
             {/* 头像 */}
-            <MagneticElement strength={{ x: 0.15, y: 0.15 }}>
+            <MagneticElement strength={{ x: 0.05, y: 0.05 }}>
               <motion.div
                 className="relative"
                 whileHover={{ scale: 1.05 }}
@@ -180,20 +179,14 @@ export default function HeroSection() {
                   }}
                 />
 
-                {/* 头像容器 */}
-                <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-white dark:border-gray-800 shadow-2xl">
-                  {/*<Image
-                    src="/avatar.jpg"
-                    alt="Avatar"
-                    fill
-                    className="object-cover"
-                    priority
-                  />*/}
-
-                  <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                    <span className="text-8xl">😊</span>
-                  </div>
-                </div>
+                <HolographicAvatar
+                  className="inset-0 w-64 h-64 overflow-visible rounded-full flex items-center justify-center relative select-none shadow-2xl z-10"
+                  imageUrl="/images/exam2.png"
+                  textureUrl="/images/texture.svg"
+                  alt="avatar"
+                  size={256}
+                />
+                <div className="absolute w-64 h-64 rounded-full bg-gray-200/50 dark:bg-gray-700/70 backdrop-blur-lg inset-0 items-center justify-center z-0"></div>
               </motion.div>
             </MagneticElement>
 
@@ -207,7 +200,7 @@ export default function HeroSection() {
               <SocialButton
                 href="https://github.com/yourusername"
                 label="GitHub"
-                color="#333"
+                color="#333333"
                 icon={
                   <svg
                     className="w-6 h-6"
@@ -223,6 +216,7 @@ export default function HeroSection() {
                 href="https://twitter.com/yourusername"
                 label="Twitter"
                 color="#1DA1F2"
+                darkColor="#1DA1F2"
                 icon={
                   <svg
                     className="w-6 h-6"
@@ -238,6 +232,7 @@ export default function HeroSection() {
                 href="mailto:your@email.com"
                 label="Email"
                 color="#EA4335"
+                darkColor="#EA4335"
                 icon={
                   <svg
                     className="w-6 h-6"
@@ -251,21 +246,6 @@ export default function HeroSection() {
                       strokeWidth={2}
                       d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                     />
-                  </svg>
-                }
-              />
-
-              <SocialButton
-                href="https://linkedin.com/in/yourusername"
-                label="LinkedIn"
-                color="#0077B5"
-                icon={
-                  <svg
-                    className="w-6 h-6"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                   </svg>
                 }
               />

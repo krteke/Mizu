@@ -7,6 +7,9 @@ export default function Home() {
   return (
     <div className="flex flex-col w-full min-h-[200dvh] pt-[var(--header-h)]">
       <HeroSection />
+      <div className="flex flex-row w-full">
+        <div className="flex flex-col"></div>
+      </div>
     </div>
   );
 }

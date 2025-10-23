@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
 import "@/app/globals.css";
-import Header from "@/app/components/Header";
+import Header from "@/app/components/Header/Header";
 import Footer from "@/app/components/Footer";
 import ClientProviders from "@/app/components/ClientProviders";
 import FloatingMenu from "./components/FloatingMenu";

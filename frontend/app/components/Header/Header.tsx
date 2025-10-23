@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import SearchBar from "./SearchBar";
-import ScrollProgress from "./ScrollProgress";
-import NavigateBar from "./NavigateBar";
-import { containerVariants, headerVariants } from "./header.cva";
+import SearchBar from "../SearchBar";
+import ScrollProgress from "../ScrollProgress";
+import NavigateBar from "../NavigateBar";
+import { containerVariants, headerVariants } from "../Header/header.cva";
 import { VariantProps } from "class-variance-authority";
 
 type HeaderState = VariantProps<typeof headerVariants>["state"];

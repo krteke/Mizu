@@ -17,6 +17,9 @@ importers:
       framer-motion:
         specifier: ^12.23.22
         version: 12.23.22(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      holographic-sticker:
+        specifier: ^1.0.4
+        version: 1.0.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       motion:
         specifier: ^12.23.12
         version: 12.23.22(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -1963,6 +1966,12 @@ packages:
 
   hast-util-whitespace@3.0.0:
     resolution: {integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==}
+
+  holographic-sticker@1.0.4:
+    resolution: {integrity: sha512-Argh6oN0Tb+7cqUDyRYYZiZxDDrya59FuHJhmJSUha7XAsANM2YXITYNkkkpnoFShe6OrTNm5XBkZ0Dm60cCvA==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   html-void-elements@3.0.0:
     resolution: {integrity: sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg==}
@@ -5061,6 +5070,11 @@ snapshots:
   hast-util-whitespace@3.0.0:
     dependencies:
       '@types/hast': 3.0.4
+
+  holographic-sticker@1.0.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
 
   html-void-elements@3.0.0: {}
 
