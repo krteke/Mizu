@@ -19,12 +19,14 @@ export default async function Aritcles() {
   const articles = await getArticleList();
 
   return (
-    <div className="flex w-full min-h-[calc(100vh-var(--footer-h))] pt-[var(--header-h)]">
-      {articles.length > 0 ? (
-        <ArticleList category="article" cards={articles} />
-      ) : (
-        <div></div>
-      )}
+    <div className="flex flex-row w-full min-h-[calc(100vh-var(--footer-h))] pt-[var(--header-h)]">
+      <div className="flex items-center justify-center">
+        {articles.length > 0 ? (
+          <ArticleList category="article" cards={articles} />
+        ) : (
+          <div></div>
+        )}
+      </div>
     </div>
   );
 }

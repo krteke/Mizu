@@ -4,6 +4,9 @@ export default function NavigateBar() {
   return (
     <>
       <nav className="pr-1">
+        <Link href={"/"}>首页</Link>
+      </nav>
+      <nav className="pr-1">
         <Link href={"/articles"}>文章</Link>
       </nav>
       <nav className="pr-1">
@@ -17,6 +20,12 @@ export default function NavigateBar() {
       </nav>
       <nav className="pr-1">
         <Link href={"/thinks"}>思考</Link>
+      </nav>
+      <nav className="pr-1">
+        <Link href={"/links"}>友链</Link>
+      </nav>
+      <nav className="pr-1">
+        <Link href={"/about"}>关于</Link>
       </nav>
     </>
   );

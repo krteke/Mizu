@@ -7,7 +7,7 @@ import DefaultCursor from "../assets/default-cursor.svg";
 import CustomCursor from "../assets/custom-cursor.svg";
 
 // 一个切换光标样式的按钮组件
-export default function CursorToggle() {
+export default function CursorToggle({ className }: { className?: string }) {
   // 使用 CursorContext 来获取和设置光标状态
   const context = useContext(CursorContext);
   if (!context) {
@@ -24,10 +24,7 @@ export default function CursorToggle() {
 
   return (
     <MagneticElement mode="wrap">
-      <button
-        onClick={changeCursor}
-        className="relative flex h-9 w-9 rounded-[44%] justify-center items-center cursor-pointer bg-[#d0d0d0] dark:bg-[#848484] transition-box-transform duration-[400ms] ease-in-out hover:scale-105"
-      >
+      <button onClick={changeCursor} className={className}>
         <div
           className={`${
             isCustomCursor ? "opacity-100 scale-100" : " opacity-0 scale-0"

@@ -1,4 +1,5 @@
 import { ArticleCard, category } from "@/types/types";
+import ArticleCardComponent from "./ArticleCardComponent";
 
 export default function ArticleList({
   category,
@@ -10,9 +11,11 @@ export default function ArticleList({
   switch (category) {
     case "article": {
       return (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-y-4">
           {cards.map((a) => {
-            return <div key={a.id}></div>;
+            return (
+              <ArticleCardComponent key={a.id} article={a} basePath="article" />
+            );
           })}
         </div>
       );

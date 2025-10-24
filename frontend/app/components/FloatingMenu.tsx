@@ -35,6 +35,9 @@ export default function FloatingMenu() {
     visible: { opacity: 1, y: 0 },
   };
 
+  const className =
+    "bg-[#d0d0d0] dark:bg-gray-700 border border-gray-700 dark:border-white w-9 h-9 rounded-[44%] cursor-pointer transition-transform duration-[400ms] ease-in-out transform-gpu hover:scale-105";
+
   return (
     <div className="fixed bottom-20 right-2 flex justify-center items-center">
       <AnimatePresence>
@@ -44,28 +47,25 @@ export default function FloatingMenu() {
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className="absolute flex flex-col bottom-full pb-2.5"
+            className="absolute flex flex-col bottom-full"
           >
-            <motion.div variants={itemVariants} className="my-1">
-              <ThemeToggle />
+            <motion.div variants={itemVariants} className="my-0.5">
+              <ThemeToggle className={className} />
             </motion.div>
-            <motion.div variants={itemVariants} className="my-1">
-              <ScrollToEdge dir="top" />
+            <motion.div variants={itemVariants} className="my-0.5">
+              <ScrollToEdge dir="top" className={className} />
             </motion.div>
-            <motion.div variants={itemVariants} className="my-1">
-              <ScrollToEdge dir="bottom" />
+            <motion.div variants={itemVariants} className="my-0.5">
+              <ScrollToEdge dir="bottom" className={className} />
             </motion.div>
-            <motion.div variants={itemVariants} className="my-1">
-              <CursorToggle />
+            <motion.div variants={itemVariants} className="my-0.5">
+              <CursorToggle className={className} />
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
       <MagneticElement mode="wrap">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="relative transition-transform ease-in-out h-9 w-9 rounded-[44%] bg-[#d0d0d0] dark:bg-[#848484] hover:scale-105 cursor-pointer"
-        >
+        <button className={className} onClick={() => setIsOpen(!isOpen)}>
           <div
             className="absolute w-8 h-8 top-1/2 left-1/2 translate-y-[-50%] translate-x-[-50%] pointer-events-none transition-all duration-200 ease-in-out"
             style={{ transform: isOpen ? "rotate(45deg)" : "rotate(0deg)" }}

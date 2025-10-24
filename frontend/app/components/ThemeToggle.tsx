@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import MagneticElement from "./MagneticElement";
 
 // 一个切换主题的按钮组件
-export default function ThemeToggle() {
+export default function ThemeToggle({ className }: { className?: string }) {
   // 使用 useTheme 来获取和设置主题
   const { theme, setTheme, resolvedTheme } = useTheme();
 
@@ -55,7 +55,7 @@ export default function ThemeToggle() {
       // 计算圆形扩展的终点半径
       const endRadius = Math.hypot(
         Math.max(x, innerWidth - x),
-        Math.max(y, innerHeight - y)
+        Math.max(y, innerHeight - y),
       );
 
       // const isTransitioningToDark =
@@ -78,7 +78,7 @@ export default function ThemeToggle() {
           pseudoElement: isDark
             ? "::view-transition-old(root)"
             : "::view-transition-new(root)",
-        }
+        },
       );
     });
   }
@@ -86,11 +86,11 @@ export default function ThemeToggle() {
   return (
     <MagneticElement mode="wrap">
       <button
-        className="bg-[#d0d0d0] dark:bg-[#848484] relative flex justify-center shadow-button w-9 h-9 rounded-[44%] cursor-pointer transition-transform duration-[400ms] ease-in-out transform-gpu hover:scale-105"
+        className={className}
         id="theme-toggle-button"
         onClick={updateView}
       >
-        <div className=" absolute w-7 h-7 top-1/2 left-1/2 translate-y-[-50%] translate-x-[-50%] pointer-events-none">
+        <div className="absolute w-7 h-7 top-1/2 left-1/2 translate-y-[-50%] translate-x-[-50%] pointer-events-none">
           {isDark ? <Moon /> : <Sun />}
         </div>
       </button>
