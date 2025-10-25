@@ -21,13 +21,11 @@ export default function About() {
     // </div>
     <div className="flex flex-row w-full min-h-[calc(100vh-var(--footer-h))] pt-[var(--header-h)]">
       <div className="flex-1"></div>
-      <div className="flex items-center justify-center flex-1">
-        {articles.length > 0 ? (
-          <ArticleList category="article" cards={articles} />
-        ) : (
-          <div></div>
-        )}
-      </div>
+      {articles.length > 0 ? (
+        <ArticleList category="article" cards={articles} />
+      ) : (
+        <div></div>
+      )}
       <div className="flex-1"></div>
     </div>
   );

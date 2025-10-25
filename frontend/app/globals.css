@@ -12,6 +12,8 @@
     --shadow-button-hover: 0 4px 10px rgba(0, 0, 0, 0.2);
     --header-h: 80px;
     --footer-h: 260px;
+    --color-primary-dark: #0f172a;
+    --color-primary-light: #f0f4f8;
 }
 
 @media (hover: hover) and (pointer: fine) {

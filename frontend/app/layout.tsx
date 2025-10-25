@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} antialiased bg-[#f0f4f8] dark:bg-[#0f172a] text-[#111111] dark:text-[#d4d4d4] transition-colors duration-[400] ease-in-out`}
+        className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} antialiased bg-primary-light dark:bg-primary-dark text-[#111111] dark:text-[#d4d4d4] transition-colors duration-[400] ease-in-out`}
       >
         <ClientProviders>
           <Header />
